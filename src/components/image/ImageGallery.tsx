@@ -12,6 +12,7 @@ interface ImageGalleryProps {
   images: ImageItem[];
   isLoading: boolean;
   onUploadImages: (files: File[]) => Promise<void>;
+  onEditImage?: (image: ImageItem) => void;
   onDeleteImage: (id: string, filePath: string) => Promise<void>;
   onToggleFavorite: (id: string, current: boolean) => Promise<void>;
 }
@@ -21,6 +22,7 @@ export function ImageGallery({
   images,
   isLoading,
   onUploadImages,
+  onEditImage,
   onDeleteImage,
   onToggleFavorite,
 }: ImageGalleryProps) {
@@ -112,6 +114,7 @@ export function ImageGallery({
               key={image.id}
               image={image}
               onPreview={(img) => setSelectedPreview(img)}
+              onEdit={onEditImage}
               onDelete={onDeleteImage}
               onToggleFavorite={onToggleFavorite}
             />

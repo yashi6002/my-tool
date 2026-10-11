@@ -134,3 +134,4 @@ export const AVAILABLE_ICONS: FolderIconType[] = [
   "star",
   "calendar",
 ];
+

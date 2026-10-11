@@ -48,3 +48,4 @@ BEGIN
   -- 既存の「メール定型文」にカラー・アイコンを設定
   UPDATE public.folders SET color = 'emerald', icon = 'mail' WHERE name = 'メール定型文';
 END $$;
+

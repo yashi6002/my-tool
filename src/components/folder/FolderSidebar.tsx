@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Folder, FolderColor, FolderIconType, FolderTreeNode } from "@/types/database";
+import {
+  Folder,
+  FolderColor,
+  FolderIconType,
+  FolderTreeNode,
+  Snippet,
+  ImageItem,
+} from "@/types/database";
 import { COLOR_CONFIGS, ICON_MAP } from "@/lib/theme";
 import { FolderModal } from "./FolderModal";
 import {
@@ -11,12 +18,20 @@ import {
   ChevronRight,
   ChevronDown,
   FolderPlus,
+  FileText,
+  Image as ImageIcon,
+  Star,
+  ListTree,
+  FolderTree,
 } from "lucide-react";
 
 interface FolderSidebarProps {
   folders: Folder[];
+  snippets: Snippet[];
+  images: ImageItem[];
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
+  onSelectItem?: (folderId: string, tab: "snippets" | "images") => void;
   onCreateFolder: (data: {
     name: string;
     parent_id: string | null;
@@ -47,8 +62,11 @@ function buildFolderTree(
 
 export function FolderSidebar({
   folders,
+  snippets,
+  images,
   selectedFolderId,
   onSelectFolder,
+  onSelectItem,
   onCreateFolder,
   onUpdateFolder,
   onDeleteFolder,
@@ -60,6 +78,9 @@ export function FolderSidebar({
 
   // ツリーの折りたたみ状態（デフォルトはすべて展開）
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+
+  // フォルダ内のファイル（定型文・画像）もツリーに一覧表示するかどうかのトグル
+  const [showFilesTree, setShowFilesTree] = useState(true);
 
   const toggleCollapse = (folderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,7 +117,14 @@ export function FolderSidebar({
   // ツリーノードを再帰描画するコンポーネント
   const renderTreeNode = (node: FolderTreeNode) => {
     const isSelected = node.id === selectedFolderId;
-    const hasChildren = Boolean(node.children && node.children.length > 0);
+    const nodeChildren = node.children || [];
+    const nodeSnippets = snippets.filter((s) => s.folder_id === node.id);
+    const nodeImages = images.filter((img) => img.folder_id === node.id);
+
+    const hasSubFolders = nodeChildren.length > 0;
+    const hasItems = showFilesTree && (nodeSnippets.length > 0 || nodeImages.length > 0);
+    const hasExpandableContent = hasSubFolders || hasItems;
+
     const isCollapsed = Boolean(collapsedMap[node.id]);
 
     const colorConfig = COLOR_CONFIGS[node.color || "blue"] || COLOR_CONFIGS.blue;
@@ -104,21 +132,23 @@ export function FolderSidebar({
 
     // インデント計算（depth に応じてインデント）
     const paddingLeftClass =
-      node.depth === 1 ? "pl-6" : node.depth === 2 ? "pl-11" : node.depth && node.depth >= 3 ? "pl-16" : "pl-3";
+      node.depth === 1 ? "pl-5" : node.depth === 2 ? "pl-9" : node.depth && node.depth >= 3 ? "pl-14" : "pl-2";
+    const itemPaddingClass =
+      node.depth === 1 ? "pl-11" : node.depth === 2 ? "pl-15" : node.depth && node.depth >= 3 ? "pl-20" : "pl-8";
 
     return (
       <div key={node.id} className="space-y-0.5">
         <div
           onClick={() => onSelectFolder(node.id)}
-          className={`group relative flex items-center justify-between pr-2 py-2 rounded-xl cursor-pointer transition-all duration-150 text-xs font-medium ${paddingLeftClass} ${
+          className={`group relative flex items-center justify-between pr-2 py-1.5 rounded-xl cursor-pointer transition-all duration-150 text-xs font-medium ${paddingLeftClass} ${
             isSelected
               ? `${colorConfig.bgLight} ${colorConfig.text} font-bold shadow-xs border ${colorConfig.border}`
               : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
           }`}
         >
           {/* 左側：展開アイコン + フォルダアイコン + 名前 */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {hasChildren ? (
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {hasExpandableContent ? (
               <button
                 type="button"
                 onClick={(e) => toggleCollapse(node.id, e)}
@@ -139,24 +169,31 @@ export function FolderSidebar({
             <div
               className={`p-1.5 rounded-lg shrink-0 ${
                 isSelected
-                  ? `${colorConfig.bgSolid} text-white`
+                  ? `${colorConfig.bgSolid} text-white shadow-xs`
                   : `${colorConfig.bgLight} ${colorConfig.text}`
               }`}
             >
               <IconComponent className="w-3.5 h-3.5" />
             </div>
 
-            <span className="truncate flex-1">{node.name}</span>
+            <span className="truncate flex-1 font-semibold">{node.name}</span>
+
+            {/* フォルダ内のアイテム総数バッジ */}
+            {(nodeSnippets.length > 0 || nodeImages.length > 0) && (
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono px-1">
+                {nodeSnippets.length + nodeImages.length}
+              </span>
+            )}
           </div>
 
           {/* 右側：サブフォルダ追加・編集・削除アクション */}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            {/* サブフォルダ追加（深さが2未満の場合のみ案内） */}
+            {/* サブフォルダ追加 */}
             {(!node.depth || node.depth < 2) && (
               <button
                 type="button"
                 onClick={(e) => handleOpenCreateModal(node.id, e)}
-                className="p-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                className="p-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                 title="この中にサブフォルダを追加"
                 aria-label="サブフォルダ追加"
               >
@@ -168,7 +205,7 @@ export function FolderSidebar({
             <button
               type="button"
               onClick={(e) => handleOpenEditModal(node, e)}
-              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
               title="編集"
               aria-label="フォルダ編集"
             >
@@ -179,7 +216,7 @@ export function FolderSidebar({
             <button
               type="button"
               onClick={(e) => handleDelete(e, node)}
-              className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+              className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
               title="削除"
               aria-label="フォルダ削除"
             >
@@ -188,10 +225,63 @@ export function FolderSidebar({
           </div>
         </div>
 
-        {/* 子要素（展開中のみ描画） */}
-        {hasChildren && !isCollapsed && (
+        {/* 展開されている場合：子フォルダ ＆ ファイル一覧を表示 */}
+        {!isCollapsed && (
           <div className="space-y-0.5">
-            {node.children!.map((child) => renderTreeNode(child))}
+            {/* 1. 子フォルダ */}
+            {hasSubFolders && (
+              <div className="space-y-0.5">
+                {nodeChildren.map((child) => renderTreeNode(child))}
+              </div>
+            )}
+
+            {/* 2. 所属する定型文一覧 */}
+            {showFilesTree &&
+              nodeSnippets.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onSelectItem) {
+                      onSelectItem(node.id, "snippets");
+                    } else {
+                      onSelectFolder(node.id);
+                    }
+                  }}
+                  className={`flex items-center gap-2 py-1 pr-2 rounded-lg cursor-pointer transition-colors text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100 ${itemPaddingClass}`}
+                  title={s.title}
+                >
+                  <FileText className="w-3 h-3 text-blue-500 shrink-0" />
+                  <span className="truncate flex-1">{s.title}</span>
+                  {s.is_favorite && (
+                    <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0" />
+                  )}
+                </div>
+              ))}
+
+            {/* 3. 所属する画像一覧 */}
+            {showFilesTree &&
+              nodeImages.map((img) => (
+                <div
+                  key={img.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onSelectItem) {
+                      onSelectItem(node.id, "images");
+                    } else {
+                      onSelectFolder(node.id);
+                    }
+                  }}
+                  className={`flex items-center gap-2 py-1 pr-2 rounded-lg cursor-pointer transition-colors text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100 ${itemPaddingClass}`}
+                  title={img.file_name}
+                >
+                  <ImageIcon className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <span className="truncate flex-1">{img.file_name}</span>
+                  {img.is_favorite && (
+                    <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0" />
+                  )}
+                </div>
+              ))}
           </div>
         )}
       </div>
@@ -200,15 +290,34 @@ export function FolderSidebar({
 
   return (
     <aside className="w-full md:w-72 lg:w-80 bg-zinc-50 dark:bg-zinc-950/80 border-r border-zinc-200 dark:border-zinc-800 flex flex-col h-full shrink-0">
-      {/* サイドバー上部アクション */}
+      {/* サイドバーヘッダー */}
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            フォルダ階層
+            エクスプローラー
           </h2>
-          <p className="text-[10px] text-zinc-400 mt-0.5">
-            最大3段階のサブフォルダ対応
-          </p>
+
+          {/* ファイル表示/非表示切り替えトグル */}
+          <button
+            type="button"
+            onClick={() => setShowFilesTree((prev) => !prev)}
+            className={`p-1 rounded-lg text-xs transition-colors cursor-pointer border ${
+              showFilesTree
+                ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:text-zinc-700"
+            }`}
+            title={
+              showFilesTree
+                ? "中身のファイル一覧を隠す（フォルダのみ表示）"
+                : "中身の定型文・画像もツリーに表示する"
+            }
+          >
+            {showFilesTree ? (
+              <ListTree className="w-3.5 h-3.5" />
+            ) : (
+              <FolderTree className="w-3.5 h-3.5" />
+            )}
+          </button>
         </div>
 
         <button

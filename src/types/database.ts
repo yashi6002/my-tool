@@ -61,6 +61,12 @@ export type CreateSnippetInput = {
   content: string;
 };
 
+export type UpdateSnippetInput = {
+  title?: string;
+  content?: string;
+  folder_id?: string;
+};
+
 export interface ImageItem {
   id: string;
   folder_id: string;
@@ -79,4 +85,9 @@ export type CreateImageInput = {
   file_name: string;
   file_size?: number;
   content_type?: string;
+};
+
+export type UpdateImageInput = {
+  file_name?: string;
+  folder_id?: string;
 };

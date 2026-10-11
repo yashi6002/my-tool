@@ -2,11 +2,12 @@
 
 import { Snippet, FolderColor } from "@/types/database";
 import { CopyButton } from "../ui/CopyButton";
-import { Trash2, Clock, Star } from "lucide-react";
+import { Trash2, Clock, Star, Edit2 } from "lucide-react";
 
 interface SnippetCardProps {
   snippet: Snippet;
   themeColor?: FolderColor;
+  onEdit?: (snippet: Snippet) => void;
   onDelete: (id: string) => Promise<void>;
   onToggleFavorite?: (id: string, current: boolean) => Promise<void>;
 }
@@ -14,6 +15,7 @@ interface SnippetCardProps {
 export function SnippetCard({
   snippet,
   themeColor = "blue",
+  onEdit,
   onDelete,
   onToggleFavorite,
 }: SnippetCardProps) {
@@ -28,6 +30,13 @@ export function SnippetCard({
     e.stopPropagation();
     if (confirm(`定型文「${snippet.title}」を削除してもよろしいですか？`)) {
       await onDelete(snippet.id);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(snippet);
     }
   };
 
@@ -75,15 +84,29 @@ export function SnippetCard({
             </h3>
           </div>
 
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 rounded-md opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer shrink-0"
-            title="削除"
-            aria-label="削除"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={handleEdit}
+                className="text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1 rounded-md cursor-pointer"
+                title="編集・フォルダ移動"
+                aria-label="編集"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 rounded-md cursor-pointer"
+              title="削除"
+              aria-label="削除"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* 本文エリア */}

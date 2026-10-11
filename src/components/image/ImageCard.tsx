@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { ImageItem } from "@/types/database";
 import { downloadImage } from "@/lib/api";
-import { ZoomIn, Download, Trash2, Check, Star } from "lucide-react";
+import { ZoomIn, Download, Trash2, Check, Star, Edit2 } from "lucide-react";
 
 interface ImageCardProps {
   image: ImageItem;
   onPreview: (image: ImageItem) => void;
+  onEdit?: (image: ImageItem) => void;
   onDelete: (id: string, filePath: string) => Promise<void>;
   onToggleFavorite?: (id: string, current: boolean) => Promise<void>;
 }
@@ -15,6 +16,7 @@ interface ImageCardProps {
 export function ImageCard({
   image,
   onPreview,
+  onEdit,
   onDelete,
   onToggleFavorite,
 }: ImageCardProps) {
@@ -39,6 +41,13 @@ export function ImageCard({
       console.error("ダウンロード失敗:", err);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(image);
     }
   };
 
@@ -73,7 +82,7 @@ export function ImageCard({
           : "border-zinc-200 dark:border-zinc-800 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900"
       }`}
     >
-      {/* お気に入りスターバッジ（常時またはホバー表示） */}
+      {/* お気に入りスターバッジ */}
       <button
         type="button"
         onClick={handleFavoriteClick}
@@ -102,7 +111,7 @@ export function ImageCard({
         />
 
         {/* ホバー時オーバーレイ */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2.5">
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
           <button
             type="button"
             onClick={(e) => {
@@ -114,6 +123,16 @@ export function ImageCard({
           >
             <ZoomIn className="w-4 h-4" />
           </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="p-2.5 bg-white/90 hover:bg-white text-zinc-900 rounded-full shadow-lg transition-transform hover:scale-110 cursor-pointer"
+              title="名称変更・フォルダ移動"
+            >
+              <Edit2 className="w-4 h-4 text-blue-600" />
+            </button>
+          )}
           <button
             type="button"
             onClick={handleDownload}
@@ -152,16 +171,17 @@ export function ImageCard({
           )}
         </div>
 
-        {/* モバイル用ダウンロードボタン */}
-        <div className="sm:hidden flex items-center gap-1 shrink-0">
+        {/* 編集アイコン（常時表示ボタン） */}
+        {onEdit && (
           <button
             type="button"
-            onClick={handleDownload}
-            className="p-1.5 text-zinc-500 hover:text-blue-600"
+            onClick={handleEdit}
+            className="text-zinc-400 hover:text-blue-600 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+            title="名称変更・フォルダ移動"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
-        </div>
+        )}
       </div>
     </div>
   );

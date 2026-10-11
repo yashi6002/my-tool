@@ -1,11 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { Folder, Snippet, ImageItem } from "@/types/database";
+import { useState, useEffect } from "react";
+import {
+  Folder,
+  Snippet,
+  ImageItem,
+  UpdateSnippetInput,
+  UpdateImageInput,
+} from "@/types/database";
 import { COLOR_CONFIGS, ICON_MAP } from "@/lib/theme";
 import { SnippetCard } from "./SnippetCard";
 import { CreateSnippetModal } from "./CreateSnippetModal";
+import { EditSnippetModal } from "./EditSnippetModal";
 import { ImageGallery } from "@/components/image/ImageGallery";
+import { EditImageModal } from "@/components/image/EditImageModal";
 import {
   Plus,
   Search,
@@ -22,16 +30,19 @@ interface SnippetViewProps {
   images: ImageItem[];
   isLoadingSnippets: boolean;
   isLoadingImages: boolean;
+  currentTab?: "snippets" | "images";
+  onTabChange?: (tab: "snippets" | "images") => void;
   onSelectFolder: (id: string) => void;
   onCreateSnippet: (title: string, content: string) => Promise<void>;
+  onUpdateSnippet: (id: string, data: UpdateSnippetInput) => Promise<void>;
   onDeleteSnippet: (id: string) => Promise<void>;
   onToggleSnippetFavorite: (id: string, current: boolean) => Promise<void>;
   onUploadImages: (files: File[]) => Promise<void>;
+  onUpdateImage: (id: string, data: UpdateImageInput) => Promise<void>;
   onDeleteImage: (id: string, filePath: string) => Promise<void>;
   onToggleImageFavorite: (id: string, current: boolean) => Promise<void>;
 }
 
-// 親フォルダを遡ってパンくずリストを生成
 function getFolderPath(folders: Folder[], currentFolder: Folder | null): Folder[] {
   if (!currentFolder) return [];
   const path: Folder[] = [currentFolder];
@@ -52,17 +63,32 @@ export function SnippetView({
   images,
   isLoadingSnippets,
   isLoadingImages,
+  currentTab = "snippets",
+  onTabChange,
   onSelectFolder,
   onCreateSnippet,
+  onUpdateSnippet,
   onDeleteSnippet,
   onToggleSnippetFavorite,
   onUploadImages,
+  onUpdateImage,
   onDeleteImage,
   onToggleImageFavorite,
 }: SnippetViewProps) {
-  const [activeTab, setActiveTab] = useState<"snippets" | "images">("snippets");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [internalTab, setInternalTab] = useState<"snippets" | "images">(currentTab);
+  const [isCreateSnippetOpen, setIsCreateSnippetOpen] = useState(false);
+  const [snippetToEdit, setSnippetToEdit] = useState<Snippet | null>(null);
+  const [imageToEdit, setImageToEdit] = useState<ImageItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    setInternalTab(currentTab);
+  }, [currentTab]);
+
+  const handleTabSwitch = (tab: "snippets" | "images") => {
+    setInternalTab(tab);
+    if (onTabChange) onTabChange(tab);
+  };
 
   if (!selectedFolder) {
     return (
@@ -101,7 +127,7 @@ export function SnippetView({
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
       {/* ビューヘッダー */}
       <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 pt-4 pb-0 flex flex-col gap-4">
-        {/* パンくずリスト（階層ナビゲーション） */}
+        {/* パンくずリスト */}
         {breadcrumbs.length > 1 && (
           <nav className="flex items-center gap-1.5 text-xs text-zinc-400 -mb-2">
             {breadcrumbs.map((f, idx) => {
@@ -146,7 +172,7 @@ export function SnippetView({
             </div>
           </div>
 
-          {activeTab === "snippets" && (
+          {internalTab === "snippets" && (
             <div className="flex items-center gap-2.5">
               {/* 検索入力 */}
               <div className="relative">
@@ -163,7 +189,7 @@ export function SnippetView({
               {/* 新規定型文追加ボタン */}
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => setIsCreateSnippetOpen(true)}
                 className={`inline-flex items-center gap-1.5 px-4 py-2 ${colorConfig.bgSolid} hover:opacity-90 active:scale-95 text-white rounded-xl text-sm font-medium transition-all shadow-xs shrink-0 cursor-pointer`}
               >
                 <Plus className="w-4 h-4" />
@@ -177,9 +203,9 @@ export function SnippetView({
         <div className="flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-1">
           <button
             type="button"
-            onClick={() => setActiveTab("snippets")}
+            onClick={() => handleTabSwitch("snippets")}
             className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
-              activeTab === "snippets"
+              internalTab === "snippets"
                 ? `border-current ${colorConfig.text}`
                 : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
@@ -188,7 +214,7 @@ export function SnippetView({
             <span>テキスト定型文</span>
             <span
               className={`px-1.5 py-0.5 rounded-full text-[11px] font-mono ${
-                activeTab === "snippets"
+                internalTab === "snippets"
                   ? colorConfig.badge
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
               }`}
@@ -199,9 +225,9 @@ export function SnippetView({
 
           <button
             type="button"
-            onClick={() => setActiveTab("images")}
+            onClick={() => handleTabSwitch("images")}
             className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
-              activeTab === "images"
+              internalTab === "images"
                 ? `border-current ${colorConfig.text}`
                 : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
@@ -210,7 +236,7 @@ export function SnippetView({
             <span>画像ギャラリー</span>
             <span
               className={`px-1.5 py-0.5 rounded-full text-[11px] font-mono ${
-                activeTab === "images"
+                internalTab === "images"
                   ? colorConfig.badge
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
               }`}
@@ -222,7 +248,7 @@ export function SnippetView({
       </div>
 
       {/* タブコンテンツ */}
-      {activeTab === "snippets" ? (
+      {internalTab === "snippets" ? (
         <div className="flex-1 overflow-y-auto p-6">
           {isLoadingSnippets ? (
             <div className="flex items-center justify-center py-20">
@@ -252,7 +278,7 @@ export function SnippetView({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => setIsCreateSnippetOpen(true)}
                     className={`inline-flex items-center gap-1.5 px-4 py-2 ${colorConfig.bgSolid} text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer`}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -268,6 +294,7 @@ export function SnippetView({
                   key={snippet.id}
                   snippet={snippet}
                   themeColor={selectedFolder.color || "blue"}
+                  onEdit={(s) => setSnippetToEdit(s)}
                   onDelete={onDeleteSnippet}
                   onToggleFavorite={onToggleSnippetFavorite}
                 />
@@ -281,19 +308,42 @@ export function SnippetView({
           images={images}
           isLoading={isLoadingImages}
           onUploadImages={onUploadImages}
+          onEditImage={(img) => setImageToEdit(img)}
           onDeleteImage={onDeleteImage}
           onToggleFavorite={onToggleImageFavorite}
         />
       )}
 
-      {/* 新規追加モーダル */}
+      {/* 新規登録モーダル */}
       <CreateSnippetModal
         folderName={selectedFolder.name}
         folderId={selectedFolder.id}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isCreateSnippetOpen}
+        onClose={() => setIsCreateSnippetOpen(false)}
         onSubmit={async (title, content) => {
           await onCreateSnippet(title, content);
+        }}
+      />
+
+      {/* 定型文 編集・移動モーダル */}
+      <EditSnippetModal
+        isOpen={Boolean(snippetToEdit)}
+        snippet={snippetToEdit}
+        folders={folders}
+        onClose={() => setSnippetToEdit(null)}
+        onSubmit={async (id, data) => {
+          await onUpdateSnippet(id, data);
+        }}
+      />
+
+      {/* 画像 名称変更・移動モーダル */}
+      <EditImageModal
+        isOpen={Boolean(imageToEdit)}
+        image={imageToEdit}
+        folders={folders}
+        onClose={() => setImageToEdit(null)}
+        onSubmit={async (id, data) => {
+          await onUpdateImage(id, data);
         }}
       />
     </div>

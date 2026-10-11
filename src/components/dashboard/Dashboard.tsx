@@ -1,18 +1,28 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Folder, Snippet, ImageItem, FolderColor, FolderIconType } from "@/types/database";
+import {
+  Folder,
+  Snippet,
+  ImageItem,
+  FolderColor,
+  FolderIconType,
+  UpdateSnippetInput,
+  UpdateImageInput,
+} from "@/types/database";
 import {
   getFolders,
   createFolder as apiCreateFolder,
   updateFolder as apiUpdateFolder,
   deleteFolder as apiDeleteFolder,
-  getSnippetsByFolder,
+  getAllSnippets,
   createSnippet as apiCreateSnippet,
+  updateSnippet as apiUpdateSnippet,
   deleteSnippet as apiDeleteSnippet,
   toggleSnippetFavorite as apiToggleSnippetFavorite,
-  getImagesByFolder,
+  getAllImages,
   uploadImage as apiUploadImage,
+  updateImage as apiUpdateImage,
   deleteImage as apiDeleteImage,
   toggleImageFavorite as apiToggleImageFavorite,
 } from "@/lib/api";
@@ -25,69 +35,44 @@ import { Sparkles, Star } from "lucide-react";
 export function Dashboard() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [snippets, setSnippets] = useState<Snippet[]>([]);
-  const [images, setImages] = useState<ImageItem[]>([]);
-  const [isLoadingFolders, setIsLoadingFolders] = useState(true);
-  const [isLoadingSnippets, setIsLoadingSnippets] = useState(false);
-  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [currentTab, setCurrentTab] = useState<"snippets" | "images">("snippets");
 
-  // フォルダ一覧を取得
-  const fetchFolders = useCallback(async () => {
+  const [allSnippets, setAllSnippets] = useState<Snippet[]>([]);
+  const [allImages, setAllImages] = useState<ImageItem[]>([]);
+
+  const [isLoadingFolders, setIsLoadingFolders] = useState(true);
+  const [isLoadingContent, setIsLoadingContent] = useState(true);
+
+  // 初期データロード
+  const loadInitialData = useCallback(async () => {
     try {
       setIsLoadingFolders(true);
-      const data = await getFolders();
-      setFolders(data);
-      if (data.length > 0 && !selectedFolderId) {
-        setSelectedFolderId(data[0].id);
+      setIsLoadingContent(true);
+
+      const [foldersData, snippetsData, imagesData] = await Promise.all([
+        getFolders(),
+        getAllSnippets(),
+        getAllImages(),
+      ]);
+
+      setFolders(foldersData);
+      setAllSnippets(snippetsData);
+      setAllImages(imagesData);
+
+      if (foldersData.length > 0 && !selectedFolderId) {
+        setSelectedFolderId(foldersData[0].id);
       }
     } catch (err) {
-      console.error("フォルダ取得失敗:", err);
+      console.error("データ取得失敗:", err);
     } finally {
       setIsLoadingFolders(false);
+      setIsLoadingContent(false);
     }
   }, [selectedFolderId]);
 
-  // 初期ロード
   useEffect(() => {
-    fetchFolders();
-  }, [fetchFolders]);
-
-  // 選択中フォルダの定型文一覧を取得
-  const fetchSnippets = useCallback(async (folderId: string) => {
-    try {
-      setIsLoadingSnippets(true);
-      const data = await getSnippetsByFolder(folderId);
-      setSnippets(data);
-    } catch (err) {
-      console.error("スニペット取得失敗:", err);
-    } finally {
-      setIsLoadingSnippets(false);
-    }
-  }, []);
-
-  // 選択中フォルダの画像一覧を取得
-  const fetchImages = useCallback(async (folderId: string) => {
-    try {
-      setIsLoadingImages(true);
-      const data = await getImagesByFolder(folderId);
-      setImages(data);
-    } catch (err) {
-      console.error("画像一覧取得失敗:", err);
-    } finally {
-      setIsLoadingImages(false);
-    }
-  }, []);
-
-  // フォルダ選択変更時のデータ再取得
-  useEffect(() => {
-    if (selectedFolderId) {
-      fetchSnippets(selectedFolderId);
-      fetchImages(selectedFolderId);
-    } else {
-      setSnippets([]);
-      setImages([]);
-    }
-  }, [selectedFolderId, fetchSnippets, fetchImages]);
+    loadInitialData();
+  }, [loadInitialData]);
 
   // フォルダ作成ハンドラー（階層・カラー・アイコン対応）
   const handleCreateFolder = async (data: {
@@ -115,6 +100,11 @@ export function Dashboard() {
     await apiDeleteFolder(id);
     const remaining = folders.filter((f) => f.id !== id && f.parent_id !== id);
     setFolders(remaining);
+
+    // 削除されたフォルダ配下のアイテムを state から除外
+    setAllSnippets((prev) => prev.filter((s) => s.folder_id !== id));
+    setAllImages((prev) => prev.filter((img) => img.folder_id !== id));
+
     if (selectedFolderId === id) {
       setSelectedFolderId(remaining.length > 0 ? remaining[0].id : null);
     }
@@ -128,19 +118,29 @@ export function Dashboard() {
       title,
       content,
     });
-    setSnippets((prev) => [newSnippet, ...prev]);
+    setAllSnippets((prev) => [newSnippet, ...prev]);
+  };
+
+  // スニペット更新（名称変更・フォルダ移動）ハンドラー
+  const handleUpdateSnippet = async (id: string, data: UpdateSnippetInput) => {
+    const updated = await apiUpdateSnippet(id, data);
+    setAllSnippets((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    // もし移動先が別のフォルダなら、移動先フォルダを選択
+    if (data.folder_id && data.folder_id !== selectedFolderId) {
+      setSelectedFolderId(data.folder_id);
+    }
   };
 
   // スニペット削除ハンドラー
   const handleDeleteSnippet = async (id: string) => {
     await apiDeleteSnippet(id);
-    setSnippets((prev) => prev.filter((s) => s.id !== id));
+    setAllSnippets((prev) => prev.filter((s) => s.id !== id));
   };
 
   // スニペットお気に入りトグル
   const handleToggleSnippetFavorite = async (id: string, current: boolean) => {
     const nextStatus = await apiToggleSnippetFavorite(id, current);
-    setSnippets((prev) =>
+    setAllSnippets((prev) =>
       prev.map((s) => (s.id === id ? { ...s, is_favorite: nextStatus } : s))
     );
   };
@@ -150,29 +150,52 @@ export function Dashboard() {
     if (!selectedFolderId) return;
     for (const file of files) {
       const newImage = await apiUploadImage(selectedFolderId, file);
-      setImages((prev) => [newImage, ...prev]);
+      setAllImages((prev) => [newImage, ...prev]);
+    }
+  };
+
+  // 画像更新（名称変更・フォルダ移動）ハンドラー
+  const handleUpdateImage = async (id: string, data: UpdateImageInput) => {
+    const updated = await apiUpdateImage(id, data);
+    setAllImages((prev) => prev.map((img) => (img.id === id ? updated : img)));
+    if (data.folder_id && data.folder_id !== selectedFolderId) {
+      setSelectedFolderId(data.folder_id);
     }
   };
 
   // 画像削除ハンドラー
   const handleDeleteImage = async (id: string, filePath: string) => {
     await apiDeleteImage(id, filePath);
-    setImages((prev) => prev.filter((img) => img.id !== id));
+    setAllImages((prev) => prev.filter((img) => img.id !== id));
   };
 
   // 画像お気に入りトグル
   const handleToggleImageFavorite = async (id: string, current: boolean) => {
     const nextStatus = await apiToggleImageFavorite(id, current);
-    setImages((prev) =>
+    setAllImages((prev) =>
       prev.map((img) => (img.id === id ? { ...img, is_favorite: nextStatus } : img))
     );
   };
 
+  // サイドバーでアイテムがクリックされた時の遷移
+  const handleSidebarSelectItem = (folderId: string, tab: "snippets" | "images") => {
+    setSelectedFolderId(folderId);
+    setCurrentTab(tab);
+  };
+
   const selectedFolder = folders.find((f) => f.id === selectedFolderId) || null;
 
+  // 選択中フォルダの定型文と画像
+  const selectedSnippets = selectedFolderId
+    ? allSnippets.filter((s) => s.folder_id === selectedFolderId)
+    : [];
+  const selectedImages = selectedFolderId
+    ? allImages.filter((img) => img.folder_id === selectedFolderId)
+    : [];
+
   const totalFavorites =
-    snippets.filter((s) => s.is_favorite).length +
-    images.filter((img) => img.is_favorite).length;
+    allSnippets.filter((s) => s.is_favorite).length +
+    allImages.filter((img) => img.is_favorite).length;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
@@ -211,12 +234,15 @@ export function Dashboard() {
         </div>
       </header>
 
-      {/* 2カラムレイアウト（左：フォルダツリー、右：定型文 ＆ 画像） */}
+      {/* 2カラムレイアウト（左：フォルダツリー＆アイテム一覧、右：定型文 ＆ 画像ビュー） */}
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
         <FolderSidebar
           folders={folders}
+          snippets={allSnippets}
+          images={allImages}
           selectedFolderId={selectedFolderId}
           onSelectFolder={(id) => setSelectedFolderId(id)}
+          onSelectItem={handleSidebarSelectItem}
           onCreateFolder={handleCreateFolder}
           onUpdateFolder={handleUpdateFolder}
           onDeleteFolder={handleDeleteFolder}
@@ -224,15 +250,19 @@ export function Dashboard() {
         <SnippetView
           folders={folders}
           selectedFolder={selectedFolder}
-          snippets={snippets}
-          images={images}
-          isLoadingSnippets={isLoadingSnippets}
-          isLoadingImages={isLoadingImages}
+          snippets={selectedSnippets}
+          images={selectedImages}
+          isLoadingSnippets={isLoadingContent}
+          isLoadingImages={isLoadingContent}
+          currentTab={currentTab}
+          onTabChange={(tab) => setCurrentTab(tab)}
           onSelectFolder={(id) => setSelectedFolderId(id)}
           onCreateSnippet={handleCreateSnippet}
+          onUpdateSnippet={handleUpdateSnippet}
           onDeleteSnippet={handleDeleteSnippet}
           onToggleSnippetFavorite={handleToggleSnippetFavorite}
           onUploadImages={handleUploadImages}
+          onUpdateImage={handleUpdateImage}
           onDeleteImage={handleDeleteImage}
           onToggleImageFavorite={handleToggleImageFavorite}
         />
