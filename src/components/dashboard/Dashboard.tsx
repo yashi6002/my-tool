@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Folder, Snippet } from "@/types/database";
+import { Folder, Snippet, ImageItem } from "@/types/database";
 import {
   getFolders,
   createFolder as apiCreateFolder,
@@ -9,6 +9,9 @@ import {
   getSnippetsByFolder,
   createSnippet as apiCreateSnippet,
   deleteSnippet as apiDeleteSnippet,
+  getImagesByFolder,
+  uploadImage as apiUploadImage,
+  deleteImage as apiDeleteImage,
 } from "@/lib/api";
 import { FolderSidebar } from "@/components/folder/FolderSidebar";
 import { SnippetView } from "@/components/snippet/SnippetView";
@@ -19,8 +22,10 @@ export function Dashboard() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [images, setImages] = useState<ImageItem[]>([]);
   const [isLoadingFolders, setIsLoadingFolders] = useState(true);
   const [isLoadingSnippets, setIsLoadingSnippets] = useState(false);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
 
   // フォルダ一覧を取得
   const fetchFolders = useCallback(async () => {
@@ -43,7 +48,7 @@ export function Dashboard() {
     fetchFolders();
   }, [fetchFolders]);
 
-  // 選択中フォルダのスニペット一覧を取得
+  // 選択中フォルダの定型文一覧を取得
   const fetchSnippets = useCallback(async (folderId: string) => {
     try {
       setIsLoadingSnippets(true);
@@ -56,13 +61,29 @@ export function Dashboard() {
     }
   }, []);
 
+  // 選択中フォルダの画像一覧を取得
+  const fetchImages = useCallback(async (folderId: string) => {
+    try {
+      setIsLoadingImages(true);
+      const data = await getImagesByFolder(folderId);
+      setImages(data);
+    } catch (err) {
+      console.error("画像一覧取得失敗:", err);
+    } finally {
+      setIsLoadingImages(false);
+    }
+  }, []);
+
+  // フォルダ選択変更時のデータ再取得
   useEffect(() => {
     if (selectedFolderId) {
       fetchSnippets(selectedFolderId);
+      fetchImages(selectedFolderId);
     } else {
       setSnippets([]);
+      setImages([]);
     }
-  }, [selectedFolderId, fetchSnippets]);
+  }, [selectedFolderId, fetchSnippets, fetchImages]);
 
   // フォルダ作成ハンドラー
   const handleCreateFolder = async (name: string) => {
@@ -98,6 +119,21 @@ export function Dashboard() {
     setSnippets((prev) => prev.filter((s) => s.id !== id));
   };
 
+  // 画像アップロードハンドラー（複数ファイル対応）
+  const handleUploadImages = async (files: File[]) => {
+    if (!selectedFolderId) return;
+    for (const file of files) {
+      const newImage = await apiUploadImage(selectedFolderId, file);
+      setImages((prev) => [newImage, ...prev]);
+    }
+  };
+
+  // 画像削除ハンドラー
+  const handleDeleteImage = async (id: string, filePath: string) => {
+    await apiDeleteImage(id, filePath);
+    setImages((prev) => prev.filter((img) => img.id !== id));
+  };
+
   const selectedFolder = folders.find((f) => f.id === selectedFolderId) || null;
 
   return (
@@ -116,19 +152,19 @@ export function Dashboard() {
               Snippet Flow
             </h1>
             <p className="text-[10px] text-zinc-400 font-mono">
-              定型文＆テンプレート管理
+              定型文 ＆ 画像アセット管理
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full">
-            第2週機能実装済み
+            第3週（定型文 ＆ 画像管理）
           </span>
         </div>
       </header>
 
-      {/* 2カラムレイアウト（左：フォルダ、右：定型文） */}
+      {/* 2カラムレイアウト（左：フォルダ、右：定型文 ＆ 画像） */}
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
         <FolderSidebar
           folders={folders}
@@ -140,9 +176,13 @@ export function Dashboard() {
         <SnippetView
           selectedFolder={selectedFolder}
           snippets={snippets}
-          isLoading={isLoadingSnippets}
+          images={images}
+          isLoadingSnippets={isLoadingSnippets}
+          isLoadingImages={isLoadingImages}
           onCreateSnippet={handleCreateSnippet}
           onDeleteSnippet={handleDeleteSnippet}
+          onUploadImages={handleUploadImages}
+          onDeleteImage={handleDeleteImage}
         />
       </div>
     </div>
