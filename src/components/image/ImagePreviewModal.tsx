@@ -99,3 +99,4 @@ export function ImagePreviewModal({ image, onClose }: ImagePreviewModalProps) {
     </div>
   );
 }
+

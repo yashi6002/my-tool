@@ -46,3 +46,4 @@ DROP POLICY IF EXISTS "Public Delete on images bucket" ON storage.objects;
 CREATE POLICY "Public Delete on images bucket" 
 ON storage.objects FOR DELETE 
 USING (bucket_id = 'images');
+

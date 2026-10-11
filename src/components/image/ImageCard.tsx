@@ -3,15 +3,21 @@
 import { useState } from "react";
 import { ImageItem } from "@/types/database";
 import { downloadImage } from "@/lib/api";
-import { ZoomIn, Download, Trash2, Check } from "lucide-react";
+import { ZoomIn, Download, Trash2, Check, Star } from "lucide-react";
 
 interface ImageCardProps {
   image: ImageItem;
   onPreview: (image: ImageItem) => void;
   onDelete: (id: string, filePath: string) => Promise<void>;
+  onToggleFavorite?: (id: string, current: boolean) => Promise<void>;
 }
 
-export function ImageCard({ image, onPreview, onDelete }: ImageCardProps) {
+export function ImageCard({
+  image,
+  onPreview,
+  onDelete,
+  onToggleFavorite,
+}: ImageCardProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,11 +55,42 @@ export function ImageCard({ image, onPreview, onDelete }: ImageCardProps) {
     }
   };
 
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onToggleFavorite) {
+      await onToggleFavorite(image.id, Boolean(image.is_favorite));
+    }
+  };
+
+  const isFavorite = Boolean(image.is_favorite);
+
   return (
     <div
       onClick={() => onPreview(image)}
-      className="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
+      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg border ${
+        isFavorite
+          ? "border-amber-400 dark:border-amber-600 ring-2 ring-amber-400/20 shadow-amber-500/10"
+          : "border-zinc-200 dark:border-zinc-800 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900"
+      }`}
     >
+      {/* お気に入りスターバッジ（常時またはホバー表示） */}
+      <button
+        type="button"
+        onClick={handleFavoriteClick}
+        className={`absolute top-2 left-2 z-10 p-1.5 rounded-full backdrop-blur-md transition-all active:scale-125 cursor-pointer ${
+          isFavorite
+            ? "bg-amber-400/90 text-white shadow-md opacity-100"
+            : "bg-black/40 text-white/70 hover:text-amber-400 opacity-0 group-hover:opacity-100"
+        }`}
+        title={isFavorite ? "お気に入り解除" : "お気に入りに追加"}
+      >
+        <Star
+          className={`w-3.5 h-3.5 ${
+            isFavorite ? "fill-white stroke-white" : ""
+          }`}
+        />
+      </button>
+
       {/* サムネイル画像領域 */}
       <div className="relative aspect-video sm:aspect-square w-full bg-zinc-100 dark:bg-zinc-950/60 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -109,7 +146,9 @@ export function ImageCard({ image, onPreview, onDelete }: ImageCardProps) {
             {image.file_name}
           </p>
           {formattedSize && (
-            <p className="text-[10px] text-zinc-400 mt-0.5">{formattedSize}</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">
+              {formattedSize}
+            </p>
           )}
         </div>
 

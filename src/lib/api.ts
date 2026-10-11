@@ -13,10 +13,40 @@ const LOCAL_IMAGES_KEY = "my_tool_images";
 
 const STORAGE_BUCKET = "images";
 
-// ローカルストレージ初期シード
+// ローカルストレージ初期シード（階層化＆カラー対応）
 const defaultFolders: Folder[] = [
-  { id: "demo-folder-1", name: "業務連絡・チャット", created_at: new Date().toISOString() },
-  { id: "demo-folder-2", name: "メール定型文", created_at: new Date().toISOString() },
+  {
+    id: "demo-folder-1",
+    name: "業務連絡・チャット",
+    parent_id: null,
+    color: "blue",
+    icon: "briefcase",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "demo-folder-1-1",
+    name: "チャット用（Slack/Teams）",
+    parent_id: "demo-folder-1",
+    color: "indigo",
+    icon: "message-square",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "demo-folder-1-1-1",
+    name: "定例ミーティング",
+    parent_id: "demo-folder-1-1",
+    color: "purple",
+    icon: "calendar",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "demo-folder-2",
+    name: "メール定型文",
+    parent_id: null,
+    color: "emerald",
+    icon: "mail",
+    created_at: new Date().toISOString(),
+  },
 ];
 
 const defaultSnippets: Snippet[] = [
@@ -25,6 +55,7 @@ const defaultSnippets: Snippet[] = [
     folder_id: "demo-folder-1",
     title: "朝の挨拶",
     content: "おはようございます！本日もよろしくお願いいたします。",
+    is_favorite: true,
     created_at: new Date().toISOString(),
   },
   {
@@ -32,13 +63,23 @@ const defaultSnippets: Snippet[] = [
     folder_id: "demo-folder-1",
     title: "確認依頼",
     content: "お疲れ様です。お時間のある際にご確認のほどよろしくお願いいたします。",
+    is_favorite: false,
     created_at: new Date().toISOString(),
   },
   {
     id: "demo-snippet-3",
+    folder_id: "demo-folder-1-1",
+    title: "離席連絡",
+    content: "少し離席します。10分程度で戻ります。",
+    is_favorite: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "demo-snippet-4",
     folder_id: "demo-folder-2",
     title: "お礼メール",
     content: "いつも大変お世話になっております。\n迅速にご対応いただき誠にありがとうございました。\n引き続きよろしくお願い申し上げます。",
+    is_favorite: false,
     created_at: new Date().toISOString(),
   },
 ];
@@ -88,10 +129,21 @@ export async function getFolders(): Promise<Folder[]> {
 }
 
 export async function createFolder(input: CreateFolderInput): Promise<Folder> {
+  const color = input.color || "blue";
+  const icon = input.icon || "folder";
+  const parent_id = input.parent_id || null;
+
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from("folders")
-      .insert([{ name: input.name.trim() }])
+      .insert([
+        {
+          name: input.name.trim(),
+          parent_id,
+          color,
+          icon,
+        },
+      ])
       .select()
       .single();
 
@@ -106,6 +158,9 @@ export async function createFolder(input: CreateFolderInput): Promise<Folder> {
   const newFolder: Folder = {
     id: `local-folder-${Date.now()}`,
     name: input.name.trim(),
+    parent_id,
+    color,
+    icon,
     created_at: new Date().toISOString(),
   };
   const folders = getLocalData<Folder[]>(LOCAL_FOLDERS_KEY, defaultFolders);
@@ -114,8 +169,45 @@ export async function createFolder(input: CreateFolderInput): Promise<Folder> {
   return newFolder;
 }
 
+export async function updateFolder(
+  id: string,
+  updates: Partial<Pick<Folder, "name" | "color" | "icon">>
+): Promise<Folder> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("folders")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating folder:", error.message);
+      throw error;
+    }
+    return data;
+  }
+
+  // ローカルフォールバック
+  const folders = getLocalData<Folder[]>(LOCAL_FOLDERS_KEY, defaultFolders);
+  const updated = folders.map((f) => (f.id === id ? { ...f, ...updates } : f));
+  setLocalData(LOCAL_FOLDERS_KEY, updated);
+  return updated.find((f) => f.id === id)!;
+}
+
+// フォルダとその子孫フォルダIDをすべて再帰的に取得
+export function getDescendantFolderIds(folders: Folder[], rootId: string): string[] {
+  const result: string[] = [rootId];
+  const children = folders.filter((f) => f.parent_id === rootId);
+  for (const child of children) {
+    result.push(...getDescendantFolderIds(folders, child.id));
+  }
+  return result;
+}
+
 export async function deleteFolder(id: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
+    // ON DELETE CASCADEにより子フォルダ・スニペット・画像はDB側で自動削除
     const { error } = await supabase.from("folders").delete().eq("id", id);
     if (error) {
       console.error("Error deleting folder:", error.message);
@@ -126,15 +218,17 @@ export async function deleteFolder(id: string): Promise<void> {
 
   // ローカルフォールバック
   const folders = getLocalData<Folder[]>(LOCAL_FOLDERS_KEY, defaultFolders);
-  const updatedFolders = folders.filter((f) => f.id !== id);
+  const deleteIds = new Set(getDescendantFolderIds(folders, id));
+
+  const updatedFolders = folders.filter((f) => !deleteIds.has(f.id));
   setLocalData(LOCAL_FOLDERS_KEY, updatedFolders);
 
   const snippets = getLocalData<Snippet[]>(LOCAL_SNIPPETS_KEY, defaultSnippets);
-  const updatedSnippets = snippets.filter((s) => s.folder_id !== id);
+  const updatedSnippets = snippets.filter((s) => !deleteIds.has(s.folder_id));
   setLocalData(LOCAL_SNIPPETS_KEY, updatedSnippets);
 
   const images = getLocalData<ImageItem[]>(LOCAL_IMAGES_KEY, []);
-  const updatedImages = images.filter((img) => img.folder_id !== id);
+  const updatedImages = images.filter((img) => !deleteIds.has(img.folder_id));
   setLocalData(LOCAL_IMAGES_KEY, updatedImages);
 }
 
@@ -175,6 +269,7 @@ export async function createSnippet(input: CreateSnippetInput): Promise<Snippet>
           folder_id: input.folder_id,
           title: input.title.trim(),
           content: input.content,
+          is_favorite: false,
         },
       ])
       .select()
@@ -193,12 +288,35 @@ export async function createSnippet(input: CreateSnippetInput): Promise<Snippet>
     folder_id: input.folder_id,
     title: input.title.trim(),
     content: input.content,
+    is_favorite: false,
     created_at: new Date().toISOString(),
   };
   const snippets = getLocalData<Snippet[]>(LOCAL_SNIPPETS_KEY, defaultSnippets);
   const updated = [newSnippet, ...snippets];
   setLocalData(LOCAL_SNIPPETS_KEY, updated);
   return newSnippet;
+}
+
+export async function toggleSnippetFavorite(id: string, currentStatus: boolean): Promise<boolean> {
+  const newStatus = !currentStatus;
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from("snippets")
+      .update({ is_favorite: newStatus })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error toggling favorite:", error.message);
+      throw error;
+    }
+    return newStatus;
+  }
+
+  // ローカルフォールバック
+  const snippets = getLocalData<Snippet[]>(LOCAL_SNIPPETS_KEY, defaultSnippets);
+  const updated = snippets.map((s) => (s.id === id ? { ...s, is_favorite: newStatus } : s));
+  setLocalData(LOCAL_SNIPPETS_KEY, updated);
+  return newStatus;
 }
 
 export async function deleteSnippet(id: string): Promise<void> {
@@ -235,7 +353,6 @@ export async function getImagesByFolder(folderId: string): Promise<ImageItem[]> 
 
     if (!data) return [];
 
-    // 各画像の公開URLを生成して付与
     return data.map((item) => {
       const { data: urlData } = supabase!.storage
         .from(STORAGE_BUCKET)
@@ -256,7 +373,6 @@ export async function getImagesByFolder(folderId: string): Promise<ImageItem[]> 
 
 export async function uploadImage(folderId: string, file: File): Promise<ImageItem> {
   if (isSupabaseConfigured && supabase) {
-    // 安全なファイルパスの生成 (例: folderId/timestamp_random_sanitizedFilename)
     const fileExt = file.name.split(".").pop() || "jpg";
     const sanitizedBase = file.name
       .replace(/\.[^/.]+$/, "")
@@ -265,7 +381,6 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
     const uniqueKey = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const filePath = `${folderId}/${uniqueKey}_${sanitizedBase}.${fileExt}`;
 
-    // 1. Supabase Storage にアップロード
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
@@ -278,7 +393,6 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
       throw new Error(`ストレージへのアップロードに失敗しました: ${uploadError.message}`);
     }
 
-    // 2. images テーブルにメタデータを登録
     const { data: inserted, error: dbError } = await supabase
       .from("images")
       .insert([
@@ -288,6 +402,7 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
           file_name: file.name,
           file_size: file.size,
           content_type: file.type || "image/jpeg",
+          is_favorite: false,
         },
       ])
       .select()
@@ -295,12 +410,10 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
 
     if (dbError) {
       console.error("Database insert error:", dbError.message);
-      // テーブル登録失敗時はストレージにアップロードしたファイルも削除してロールバック
       await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
       throw new Error(`データベースへの登録に失敗しました: ${dbError.message}`);
     }
 
-    // 3. 公開URLを取得して返す
     const { data: urlData } = supabase.storage
       .from(STORAGE_BUCKET)
       .getPublicUrl(filePath);
@@ -311,7 +424,7 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
     };
   }
 
-  // ローカルフォールバック (DataURL化して保存)
+  // ローカルフォールバック
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -324,6 +437,7 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
         file_size: file.size,
         content_type: file.type,
         public_url: dataUrl,
+        is_favorite: false,
         created_at: new Date().toISOString(),
       };
       const images = getLocalData<ImageItem[]>(LOCAL_IMAGES_KEY, []);
@@ -335,9 +449,30 @@ export async function uploadImage(folderId: string, file: File): Promise<ImageIt
   });
 }
 
+export async function toggleImageFavorite(id: string, currentStatus: boolean): Promise<boolean> {
+  const newStatus = !currentStatus;
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from("images")
+      .update({ is_favorite: newStatus })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error toggling image favorite:", error.message);
+      throw error;
+    }
+    return newStatus;
+  }
+
+  // ローカルフォールバック
+  const images = getLocalData<ImageItem[]>(LOCAL_IMAGES_KEY, []);
+  const updated = images.map((img) => (img.id === id ? { ...img, is_favorite: newStatus } : img));
+  setLocalData(LOCAL_IMAGES_KEY, updated);
+  return newStatus;
+}
+
 export async function deleteImage(id: string, filePath: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
-    // 1. images テーブルから削除
     const { error: dbError } = await supabase
       .from("images")
       .delete()
@@ -348,7 +483,6 @@ export async function deleteImage(id: string, filePath: string): Promise<void> {
       throw dbError;
     }
 
-    // 2. Supabase Storage から実体ファイルを削除
     if (filePath) {
       const { error: storageError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -369,7 +503,6 @@ export async function deleteImage(id: string, filePath: string): Promise<void> {
   );
 }
 
-// 画像のワンクリックダウンロード処理（Blob経由で安全にファイル名付き保存）
 export async function downloadImage(publicUrl: string, fileName: string): Promise<void> {
   try {
     const response = await fetch(publicUrl);
@@ -384,11 +517,9 @@ export async function downloadImage(publicUrl: string, fileName: string): Promis
     link.click();
     document.body.removeChild(link);
 
-    // メモリ解放
     window.URL.revokeObjectURL(blobUrl);
   } catch (err) {
     console.error("Download failed:", err);
-    // フォールバック: 直接URLを開いて保存を試みる
     const link = document.createElement("a");
     link.href = publicUrl;
     link.download = fileName;

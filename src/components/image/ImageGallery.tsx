@@ -13,6 +13,7 @@ interface ImageGalleryProps {
   isLoading: boolean;
   onUploadImages: (files: File[]) => Promise<void>;
   onDeleteImage: (id: string, filePath: string) => Promise<void>;
+  onToggleFavorite: (id: string, current: boolean) => Promise<void>;
 }
 
 export function ImageGallery({
@@ -21,11 +22,19 @@ export function ImageGallery({
   isLoading,
   onUploadImages,
   onDeleteImage,
+  onToggleFavorite,
 }: ImageGalleryProps) {
   const [selectedPreview, setSelectedPreview] = useState<ImageItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredImages = images.filter((img) =>
+  // スター付きを最優先で先頭にソート
+  const sortedImages = [...images].sort((a, b) => {
+    if (a.is_favorite && !b.is_favorite) return -1;
+    if (!a.is_favorite && b.is_favorite) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const filteredImages = sortedImages.filter((img) =>
     img.file_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -45,6 +54,11 @@ export function ImageGallery({
             {images.length}
           </span>{" "}
           枚
+          {images.some((img) => img.is_favorite) && (
+            <span className="ml-2 text-amber-500 font-semibold">
+              （★ {images.filter((img) => img.is_favorite).length} 件お気に入り）
+            </span>
+          )}
         </p>
 
         {images.length > 0 && (
@@ -99,6 +113,7 @@ export function ImageGallery({
               image={image}
               onPreview={(img) => setSelectedPreview(img)}
               onDelete={onDeleteImage}
+              onToggleFavorite={onToggleFavorite}
             />
           ))}
         </div>

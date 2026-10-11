@@ -2,33 +2,63 @@
 
 import { useState } from "react";
 import { Folder, Snippet, ImageItem } from "@/types/database";
+import { COLOR_CONFIGS, ICON_MAP } from "@/lib/theme";
 import { SnippetCard } from "./SnippetCard";
 import { CreateSnippetModal } from "./CreateSnippetModal";
 import { ImageGallery } from "@/components/image/ImageGallery";
-import { Plus, Search, FolderClosed, FileText, Image as ImageIcon } from "lucide-react";
+import {
+  Plus,
+  Search,
+  FolderClosed,
+  FileText,
+  Image as ImageIcon,
+  ChevronRight,
+} from "lucide-react";
 
 interface SnippetViewProps {
+  folders: Folder[];
   selectedFolder: Folder | null;
   snippets: Snippet[];
   images: ImageItem[];
   isLoadingSnippets: boolean;
   isLoadingImages: boolean;
+  onSelectFolder: (id: string) => void;
   onCreateSnippet: (title: string, content: string) => Promise<void>;
   onDeleteSnippet: (id: string) => Promise<void>;
+  onToggleSnippetFavorite: (id: string, current: boolean) => Promise<void>;
   onUploadImages: (files: File[]) => Promise<void>;
   onDeleteImage: (id: string, filePath: string) => Promise<void>;
+  onToggleImageFavorite: (id: string, current: boolean) => Promise<void>;
+}
+
+// 親フォルダを遡ってパンくずリストを生成
+function getFolderPath(folders: Folder[], currentFolder: Folder | null): Folder[] {
+  if (!currentFolder) return [];
+  const path: Folder[] = [currentFolder];
+  let curr = currentFolder;
+  while (curr.parent_id) {
+    const parent = folders.find((f) => f.id === curr.parent_id);
+    if (!parent || path.some((p) => p.id === parent.id)) break;
+    path.unshift(parent);
+    curr = parent;
+  }
+  return path;
 }
 
 export function SnippetView({
+  folders,
   selectedFolder,
   snippets,
   images,
   isLoadingSnippets,
   isLoadingImages,
+  onSelectFolder,
   onCreateSnippet,
   onDeleteSnippet,
+  onToggleSnippetFavorite,
   onUploadImages,
   onDeleteImage,
+  onToggleImageFavorite,
 }: SnippetViewProps) {
   const [activeTab, setActiveTab] = useState<"snippets" | "images">("snippets");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,7 +80,18 @@ export function SnippetView({
     );
   }
 
-  const filteredSnippets = snippets.filter(
+  const breadcrumbs = getFolderPath(folders, selectedFolder);
+  const colorConfig = COLOR_CONFIGS[selectedFolder.color || "blue"] || COLOR_CONFIGS.blue;
+  const FolderIconComponent = ICON_MAP[selectedFolder.icon || "folder"] || ICON_MAP.folder;
+
+  // 定型文をお気に入り優先でソート
+  const sortedSnippets = [...snippets].sort((a, b) => {
+    if (a.is_favorite && !b.is_favorite) return -1;
+    if (!a.is_favorite && b.is_favorite) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const filteredSnippets = sortedSnippets.filter(
     (s) =>
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -60,16 +101,48 @@ export function SnippetView({
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
       {/* ビューヘッダー */}
       <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 pt-4 pb-0 flex flex-col gap-4">
+        {/* パンくずリスト（階層ナビゲーション） */}
+        {breadcrumbs.length > 1 && (
+          <nav className="flex items-center gap-1.5 text-xs text-zinc-400 -mb-2">
+            {breadcrumbs.map((f, idx) => {
+              const isLast = idx === breadcrumbs.length - 1;
+              return (
+                <div key={f.id} className="flex items-center gap-1.5">
+                  {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600" />}
+                  {isLast ? (
+                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                      {f.name}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onSelectFolder(f.id)}
+                      className="hover:text-zinc-800 dark:hover:text-zinc-100 hover:underline cursor-pointer"
+                    >
+                      {f.name}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        )}
+
         {/* フォルダ名 & アクション */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                フォルダ
-              </span>
+          <div className="flex items-center gap-3">
+            <div
+              className={`p-2 rounded-xl text-white ${colorConfig.bgSolid} shadow-xs transition-colors`}
+            >
+              <FolderIconComponent className="w-5 h-5" />
+            </div>
+            <div>
               <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
                 {selectedFolder.name}
               </h1>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {breadcrumbs.length > 1 ? `第${breadcrumbs.length}階層のフォルダ` : "最上位フォルダ"}
+              </p>
             </div>
           </div>
 
@@ -91,7 +164,7 @@ export function SnippetView({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-sm font-medium transition-all shadow-xs shrink-0 cursor-pointer"
+                className={`inline-flex items-center gap-1.5 px-4 py-2 ${colorConfig.bgSolid} hover:opacity-90 active:scale-95 text-white rounded-xl text-sm font-medium transition-all shadow-xs shrink-0 cursor-pointer`}
               >
                 <Plus className="w-4 h-4" />
                 <span>定型文を追加</span>
@@ -101,13 +174,13 @@ export function SnippetView({
         </div>
 
         {/* タブ切り替えバー */}
-        <div className="flex items-center gap-1 border-t border-zinc-100 dark:border-zinc-800 pt-1">
+        <div className="flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-1">
           <button
             type="button"
             onClick={() => setActiveTab("snippets")}
             className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               activeTab === "snippets"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                ? `border-current ${colorConfig.text}`
                 : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
           >
@@ -116,7 +189,7 @@ export function SnippetView({
             <span
               className={`px-1.5 py-0.5 rounded-full text-[11px] font-mono ${
                 activeTab === "snippets"
-                  ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                  ? colorConfig.badge
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
               }`}
             >
@@ -129,7 +202,7 @@ export function SnippetView({
             onClick={() => setActiveTab("images")}
             className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               activeTab === "images"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                ? `border-current ${colorConfig.text}`
                 : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             }`}
           >
@@ -138,7 +211,7 @@ export function SnippetView({
             <span
               className={`px-1.5 py-0.5 rounded-full text-[11px] font-mono ${
                 activeTab === "images"
-                  ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                  ? colorConfig.badge
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
               }`}
             >
@@ -180,7 +253,7 @@ export function SnippetView({
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-medium hover:bg-blue-700 transition-colors cursor-pointer"
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 ${colorConfig.bgSolid} text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer`}
                   >
                     <Plus className="w-3.5 h-3.5" />
                     初めての定型文を登録
@@ -194,7 +267,9 @@ export function SnippetView({
                 <SnippetCard
                   key={snippet.id}
                   snippet={snippet}
+                  themeColor={selectedFolder.color || "blue"}
                   onDelete={onDeleteSnippet}
+                  onToggleFavorite={onToggleSnippetFavorite}
                 />
               ))}
             </div>
@@ -207,6 +282,7 @@ export function SnippetView({
           isLoading={isLoadingImages}
           onUploadImages={onUploadImages}
           onDeleteImage={onDeleteImage}
+          onToggleFavorite={onToggleImageFavorite}
         />
       )}
 

@@ -126,3 +126,4 @@ export function ImageUploadZone({ folderName, onUpload }: ImageUploadZoneProps) 
     </div>
   );
 }
+
