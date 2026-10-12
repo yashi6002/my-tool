@@ -638,3 +638,111 @@ export async function downloadImage(publicUrl: string, fileName: string): Promis
     link.click();
   }
 }
+
+// ----------------------------------------------------
+// ゲーム（GameItem）操作 API
+// ----------------------------------------------------
+import type { GameItem, CreateGameInput, UpdateGameInput } from "@/types/database";
+
+export async function getAllGames(): Promise<GameItem[]> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("games")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("Error fetching games:", error.message);
+      throw error;
+    }
+    return data || [];
+  }
+  // TODO: local fallback could be implemented later
+  return [];
+}
+
+export async function getGameById(id: string): Promise<GameItem | null> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("games")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) {
+      console.error(`Error fetching game ${id}:`, error.message);
+      throw error;
+    }
+    return data || null;
+  }
+  return null;
+}
+
+export async function createGame(input: CreateGameInput): Promise<GameItem> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("games")
+      .insert([input])
+      .select()
+      .single();
+    if (error) {
+      console.error("Error creating game:", error.message);
+      throw error;
+    }
+    return data as GameItem;
+  }
+  // Local fallback: generate temporary id
+  const newGame: GameItem = {
+    id: `local-game-${Date.now()}`,
+    ...input,
+    created_at: new Date().toISOString(),
+  } as GameItem;
+  // TODO: store locally if needed
+  return newGame;
+}
+
+export async function updateGame(id: string, updates: UpdateGameInput): Promise<GameItem> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("games")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) {
+      console.error(`Error updating game ${id}:`, error.message);
+      throw error;
+    }
+    return data as GameItem;
+  }
+  // Local fallback: not implemented
+  throw new Error("Local updateGame not implemented");
+}
+
+export async function deleteGame(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from("games").delete().eq("id", id);
+    if (error) {
+      console.error(`Error deleting game ${id}:`, error.message);
+      throw error;
+    }
+    return;
+  }
+  // Local fallback: not implemented
+  throw new Error("Local deleteGame not implemented");
+}
+
+export async function toggleGameFavorite(id: string, currentStatus: boolean): Promise<boolean> {
+  const newStatus = !currentStatus;
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from("games")
+      .update({ is_favorite: newStatus })
+      .eq("id", id);
+    if (error) {
+      console.error(`Error toggling favorite for game ${id}:`, error.message);
+      throw error;
+    }
+    return newStatus;
+  }
+  // Local fallback: not implemented
+  throw new Error("Local toggleGameFavorite not implemented");
+}

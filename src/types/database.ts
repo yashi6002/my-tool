@@ -91,3 +91,34 @@ export type UpdateImageInput = {
   file_name?: string;
   folder_id?: string;
 };
+
+// ========================================================
+// ソシャゲ進捗＆アカウント管理ポータル用 型定義
+// ========================================================
+export type GameStatus = "main" | "login_only" | "paused" | "retired";
+
+export interface GameItem {
+  id: string;
+  title: string;
+  icon_url?: string;
+  screenshot_url?: string;
+  status: GameStatus;
+  currency_amount?: string;
+  player_level?: string;
+  progress_memo?: string;
+  login_id?: string;
+  password_code?: string;
+  linked_account?: string;
+  official_url?: string;
+  twitter_url?: string;
+  store_url?: string;
+  event_title?: string;
+  event_end_date?: string; // YYYY-MM-DD
+  gacha_update_date?: string; // YYYY-MM-DD
+  is_favorite?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export type CreateGameInput = Omit<GameItem, "id" | "created_at" | "updated_at">;
+export type UpdateGameInput = Partial<CreateGameInput>;
