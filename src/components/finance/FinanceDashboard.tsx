@@ -20,9 +20,10 @@ import { BudgetPieChart } from "@/components/finance/BudgetPieChart";
 import { ExtraExpenseSection } from "@/components/finance/ExtraExpenseSection";
 import { SettingsPanel } from "@/components/finance/SettingsPanel";
 import { PaydayCalendarView } from "@/components/finance/PaydayCalendarView";
+import { RecentExpensesReminder } from "@/components/finance/RecentExpensesReminder";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { EnvNoticeBanner } from "@/components/ui/EnvNoticeBanner";
-import { Wallet, Settings, BarChart2, Calendar as CalendarIcon, Zap } from "lucide-react";
+import { Wallet, Settings, BarChart2, Calendar as CalendarIcon, Zap, Bell } from "lucide-react";
 
 // ──────────────────────────────────────────
 // ローカルストレージ ヘルパー
@@ -63,6 +64,7 @@ export function FinanceDashboard() {
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
   const [categoryColors, setCategoryColors] = useState<CategoryColors>(DEFAULT_CATEGORY_COLORS);
+  const [showReminder, setShowReminder] = useState<boolean>(true);
   const [mounted, setMounted] = useState(false);
 
   // クライアント側でのみローカルストレージからロード
@@ -163,13 +165,23 @@ export function FinanceDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* リマインダー手動再表示ボタン */}
+          <button
+            onClick={() => setShowReminder(true)}
+            className="p-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors relative"
+            title="直近の支出リマインダーを表示"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1 right-1" />
+          </button>
+
           {/* 次の給料日バッジ */}
           {cycle.payday > 0 && (
             <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full shadow-2xs">
               💴 次の給料日まで あと{daysToPayday}日
             </span>
           )}
-          <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 hidden sm:block" />
+          <div className="h-4 w-px bg-zinc-200 dark:border-zinc-800 hidden sm:block" />
           <ThemeToggle />
         </div>
       </header>
@@ -253,6 +265,16 @@ export function FinanceDashboard() {
           </section>
         </div>
       </main>
+
+      {/* ── サイトアクセス時 直近支出リマインダー ── */}
+      <RecentExpensesReminder
+        fixedCosts={fixedCosts}
+        extraExpenses={extraExpenses}
+        calendarEvents={calendarEvents}
+        autoCloseDuration={8}
+        isOpenExternal={showReminder}
+        onToggleExternal={setShowReminder}
+      />
     </div>
   );
 }
