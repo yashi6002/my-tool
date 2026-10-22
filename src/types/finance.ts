@@ -18,6 +18,7 @@ export interface FixedCost {
   amount: number;         // 金額（円）
   category: FixedCostCategory;
   due_day?: number;       // 引き落とし日（1〜31）
+  color?: string;         // 固有カラー (HEX)
   memo?: string;
   created_at: string;
 }
@@ -27,6 +28,7 @@ export interface SavingPlan {
   id: string;
   name: string;           // 項目名（例: NISA、先取り貯金）
   amount: number;         // 金額（円）
+  color?: string;         // 固有カラー (HEX)
   memo?: string;
   created_at: string;
 }
@@ -37,10 +39,26 @@ export interface ExtraExpense {
   name: string;           // 項目名（例: 車検代）
   amount: number;         // 予定金額
   date?: string;          // 予定日 YYYY-MM-DD
+  color?: string;         // 固有カラー (HEX)
   image_url?: string;     // 添付画像 URL
   memo?: string;
   created_at: string;
 }
+
+/** お金の種類（4大カテゴリ）のカスタムカラー設定 */
+export interface CategoryColors {
+  fixed: string;   // 固定費・引き落とし
+  saving: string;  // 貯金・投資
+  extra: string;   // 臨時出費
+  free: string;    // 自由に使えるお金
+}
+
+export const DEFAULT_CATEGORY_COLORS: CategoryColors = {
+  fixed:  "#f87171", // 赤系
+  saving: "#60a5fa", // 青系
+  extra:  "#fb923c", // オレンジ系
+  free:   "#34d399", // 緑系
+};
 
 /** 給料日サイクル設定 */
 export interface PaydayCycle {
@@ -83,4 +101,5 @@ export const LS_KEY_FIXED    = "ft_fixed_costs";
 export const LS_KEY_SAVINGS  = "ft_saving_plans";
 export const LS_KEY_EXTRAS   = "ft_extra_expenses";
 export const LS_KEY_EVENTS   = "ft_calendar_events";
+export const LS_KEY_CATEGORY_COLORS = "ft_category_colors";
 

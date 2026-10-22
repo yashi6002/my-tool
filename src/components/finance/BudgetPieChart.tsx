@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { FixedCost, SavingPlan, ExtraExpense } from "@/types/finance";
+import { FixedCost, SavingPlan, ExtraExpense, CategoryColors, DEFAULT_CATEGORY_COLORS } from "@/types/finance";
 import { TrendingDown, PiggyBank, Zap, Wallet } from "lucide-react";
 
 interface Props {
@@ -10,14 +10,8 @@ interface Props {
   fixedCosts: FixedCost[];
   savingPlans: SavingPlan[];
   extraExpenses: ExtraExpense[];
+  categoryColors?: CategoryColors;
 }
-
-const CHART_COLORS = {
-  fixed:  "#f87171", // red-400
-  saving: "#60a5fa", // blue-400
-  extra:  "#fb923c", // orange-400
-  free:   "#34d399", // emerald-400
-};
 
 const fmt = (n: number) =>
   n.toLocaleString("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
@@ -45,25 +39,25 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name
   );
 }
 
-export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses }: Props) {
+export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses, categoryColors = DEFAULT_CATEGORY_COLORS }: Props) {
   const totalFixed  = useMemo(() => fixedCosts.reduce((s, c) => s + c.amount, 0), [fixedCosts]);
   const totalSaving = useMemo(() => savingPlans.reduce((s, p) => s + p.amount, 0), [savingPlans]);
   const totalExtra  = useMemo(() => extraExpenses.reduce((s, e) => s + e.amount, 0), [extraExpenses]);
   const freeAmount  = Math.max(0, salary - totalFixed - totalSaving - totalExtra);
 
   const data = [
-    { name: "固定費・引落", value: totalFixed,  color: CHART_COLORS.fixed  },
-    { name: "貯金・投資",   value: totalSaving, color: CHART_COLORS.saving },
-    { name: "臨時出費",     value: totalExtra,  color: CHART_COLORS.extra  },
-    { name: "自由に使える", value: freeAmount,  color: CHART_COLORS.free   },
+    { name: "固定費・引落", value: totalFixed,  color: categoryColors.fixed  },
+    { name: "貯金・投資",   value: totalSaving, color: categoryColors.saving },
+    { name: "臨時出費",     value: totalExtra,  color: categoryColors.extra  },
+    { name: "自由に使える", value: freeAmount,  color: categoryColors.free   },
   ].filter(d => d.value > 0);
 
   const overBudget = salary > 0 && freeAmount === 0 && (totalFixed + totalSaving + totalExtra) > salary;
 
   const summaryCards = [
-    { label: "固定費・引落", amount: totalFixed,  icon: TrendingDown, color: "text-red-400",     bg: "bg-red-50 dark:bg-red-950/40" },
-    { label: "貯金・投資",   amount: totalSaving, icon: PiggyBank,    color: "text-blue-400",    bg: "bg-blue-50 dark:bg-blue-950/40" },
-    { label: "臨時出費",     amount: totalExtra,  icon: Zap,          color: "text-orange-400",  bg: "bg-orange-50 dark:bg-orange-950/40" },
+    { label: "固定費・引落", amount: totalFixed,  icon: TrendingDown, hexColor: categoryColors.fixed },
+    { label: "貯金・投資",   amount: totalSaving, icon: PiggyBank,    hexColor: categoryColors.saving },
+    { label: "臨時出費",     amount: totalExtra,  icon: Zap,          hexColor: categoryColors.extra },
   ];
 
   return (
@@ -129,11 +123,15 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses 
 
             {/* 内訳サマリー */}
             <div className="grid grid-cols-3 gap-2">
-              {summaryCards.map(({ label, amount, icon: Icon, color, bg }) => (
-                <div key={label} className={`${bg} rounded-lg p-3 text-center`}>
-                  <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{label}</p>
-                  <p className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
+              {summaryCards.map(({ label, amount, icon: Icon, hexColor }) => (
+                <div
+                  key={label}
+                  className="rounded-xl p-3 text-center border border-zinc-100 dark:border-zinc-800"
+                  style={{ backgroundColor: `${hexColor}15` }}
+                >
+                  <Icon className="w-4 h-4 mx-auto mb-1" style={{ color: hexColor }} />
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{label}</p>
+                  <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
                     {fmt(amount)}
                   </p>
                 </div>

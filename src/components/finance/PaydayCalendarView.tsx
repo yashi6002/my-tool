@@ -7,6 +7,8 @@ import {
   SavingPlan,
   ExtraExpense,
   CalendarEventItem,
+  CategoryColors,
+  DEFAULT_CATEGORY_COLORS,
 } from "@/types/finance";
 import { CalendarEventModal } from "./CalendarEventModal";
 import {
@@ -27,6 +29,7 @@ interface Props {
   savingPlans: SavingPlan[];
   extraExpenses: ExtraExpense[];
   calendarEvents: CalendarEventItem[];
+  categoryColors?: CategoryColors;
   onAddEvent: (event: Omit<CalendarEventItem, "id" | "created_at">) => void;
   onUpdateEvent: (id: string, updates: Partial<CalendarEventItem>) => void;
   onDeleteEvent: (id: string) => void;
@@ -51,6 +54,7 @@ export function PaydayCalendarView({
   savingPlans,
   extraExpenses,
   calendarEvents,
+  categoryColors = DEFAULT_CATEGORY_COLORS,
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
@@ -124,7 +128,7 @@ export function PaydayCalendarView({
           amount: cycle.salary,
           type: "income",
           date: dStr,
-          color: "#10b981", // エメラルド
+          color: categoryColors.free, // 自由額・収入カラー
           source: "custom",
           created_at: dStr,
         });
@@ -137,7 +141,7 @@ export function PaydayCalendarView({
             amount: totalSavings,
             type: "expense",
             date: dStr,
-            color: "#a855f7", // パープル
+            color: categoryColors.saving, // 貯金カラー
             source: "custom",
             created_at: dStr,
           });
@@ -153,7 +157,7 @@ export function PaydayCalendarView({
             amount: fc.amount,
             type: "expense",
             date: dStr,
-            color: "#3b82f6", // ブルー
+            color: fc.color || categoryColors.fixed, // 固定費個別カラー または 固定費カテゴリカラー
             is_recurring: true,
             recurring_day: fc.due_day,
             memo: fc.memo,
@@ -173,7 +177,7 @@ export function PaydayCalendarView({
             amount: ee.amount,
             type: "expense",
             date: dStr,
-            color: "#f59e0b", // アンバー
+            color: ee.color || categoryColors.extra, // 臨時出費カラー または カテゴリカラー
             memo: ee.memo,
             source: "extra",
             source_id: ee.id,
@@ -541,3 +545,4 @@ export function PaydayCalendarView({
     </div>
   );
 }
+

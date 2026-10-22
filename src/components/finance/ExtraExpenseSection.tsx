@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExtraExpense } from "@/types/finance";
+import { ExtraExpense, PRESET_COLORS } from "@/types/finance";
 import { Zap, Calendar, ImageIcon, Trash2, Edit2, X, Check } from "lucide-react";
 
 interface Props {
@@ -28,7 +28,7 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // 新規フォーム state
-  const [form, setForm] = useState({ name: "", amount: "", date: "", memo: "" });
+  const [form, setForm] = useState({ name: "", amount: "", date: "", color: "#fb923c", memo: "" });
   // 編集フォーム state
   const [editForm, setEditForm] = useState<Partial<ExtraExpense>>({});
 
@@ -38,15 +38,16 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
       name: form.name.trim(),
       amount: Number(form.amount),
       date: form.date || undefined,
+      color: form.color,
       memo: form.memo || undefined,
     });
-    setForm({ name: "", amount: "", date: "", memo: "" });
+    setForm({ name: "", amount: "", date: "", color: "#fb923c", memo: "" });
     setShowForm(false);
   };
 
   const startEdit = (e: ExtraExpense) => {
     setEditingId(e.id);
-    setEditForm({ name: e.name, amount: e.amount, date: e.date, memo: e.memo });
+    setEditForm({ name: e.name, amount: e.amount, date: e.date, color: e.color || "#fb923c", memo: e.memo });
   };
 
   const commitEdit = () => {
@@ -94,14 +95,36 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
               />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">予定日</label>
-            <input
-              type="date"
-              className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 bg-white dark:bg-zinc-800 dark:text-zinc-100"
-              value={form.date}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-            />
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">予定日</label>
+              <input
+                type="date"
+                className="text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 bg-white dark:bg-zinc-800 dark:text-zinc-100"
+                value={form.date}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">表示カラー</label>
+              <div className="flex items-center gap-1.5">
+                {PRESET_COLORS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, color: p.hex }))}
+                    className={`w-4 h-4 rounded-full ${form.color === p.hex ? "ring-2 ring-zinc-500 scale-125" : "opacity-75"}`}
+                    style={{ backgroundColor: p.hex }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))}
+                  className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                />
+              </div>
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">メモ</label>
@@ -186,7 +209,13 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
                   // 表示モード
                   <>
                     <div className="flex items-start justify-between">
-                      <p className="font-semibold text-zinc-800 dark:text-zinc-100 text-sm">{expense.name}</p>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: expense.color || "#fb923c" }}
+                        />
+                        <p className="font-semibold text-zinc-800 dark:text-zinc-100 text-sm">{expense.name}</p>
+                      </div>
                       <div className="flex gap-1">
                         <button onClick={() => startEdit(expense)} className="p-1 text-zinc-400 hover:text-zinc-600">
                           <Edit2 className="w-3.5 h-3.5" />
@@ -197,7 +226,9 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
                       </div>
                     </div>
 
-                    <p className="text-lg font-bold text-orange-500">{fmt(expense.amount)}</p>
+                    <p className="text-lg font-bold" style={{ color: expense.color || "#f97316" }}>
+                      {fmt(expense.amount)}
+                    </p>
 
                     {expense.date && (
                       <div className="flex items-center gap-1.5">
