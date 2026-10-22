@@ -6,17 +6,20 @@ import {
   SavingPlan,
   ExtraExpense,
   PaydayCycle,
+  CalendarEventItem,
   LS_KEY_CYCLE,
   LS_KEY_FIXED,
   LS_KEY_SAVINGS,
   LS_KEY_EXTRAS,
+  LS_KEY_EVENTS,
 } from "@/types/finance";
 import { BudgetPieChart } from "@/components/finance/BudgetPieChart";
 import { ExtraExpenseSection } from "@/components/finance/ExtraExpenseSection";
 import { SettingsPanel } from "@/components/finance/SettingsPanel";
+import { PaydayCalendarView } from "@/components/finance/PaydayCalendarView";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { EnvNoticeBanner } from "@/components/ui/EnvNoticeBanner";
-import { Wallet, Settings, BarChart2 } from "lucide-react";
+import { Wallet, Settings, BarChart2, Calendar as CalendarIcon } from "lucide-react";
 
 // ──────────────────────────────────────────
 // ローカルストレージ ヘルパー
@@ -51,12 +54,13 @@ const DEFAULT_SAVINGS: SavingPlan[] = [
 // メインコンポーネント
 // ──────────────────────────────────────────
 export function FinanceDashboard() {
-  const [tab, setTab] = useState<"dashboard" | "settings">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "calendar" | "settings">("dashboard");
 
   const [cycle, setCycle] = useState<PaydayCycle>({ salary: 250000, payday: 25 });
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [savingPlans, setSavingPlans] = useState<SavingPlan[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
   // クライアント側でのみローカルストレージからロード
@@ -65,6 +69,7 @@ export function FinanceDashboard() {
     setFixedCosts(load(LS_KEY_FIXED, DEFAULT_FIXED));
     setSavingPlans(load(LS_KEY_SAVINGS, DEFAULT_SAVINGS));
     setExtraExpenses(load(LS_KEY_EXTRAS, []));
+    setCalendarEvents(load(LS_KEY_EVENTS, []));
     setMounted(true);
   }, []);
 
@@ -73,6 +78,7 @@ export function FinanceDashboard() {
   useEffect(() => { if (mounted) save(LS_KEY_FIXED, fixedCosts); }, [fixedCosts, mounted]);
   useEffect(() => { if (mounted) save(LS_KEY_SAVINGS, savingPlans); }, [savingPlans, mounted]);
   useEffect(() => { if (mounted) save(LS_KEY_EXTRAS, extraExpenses); }, [extraExpenses, mounted]);
+  useEffect(() => { if (mounted) save(LS_KEY_EVENTS, calendarEvents); }, [calendarEvents, mounted]);
 
   // ── 固定費 CRUD ──
   const handleAddFixed = useCallback((data: Omit<FixedCost, "id" | "created_at">) => {
@@ -105,6 +111,17 @@ export function FinanceDashboard() {
   }, []);
   const handleUpdateExtra = useCallback((id: string, data: Partial<ExtraExpense>) => {
     setExtraExpenses(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+  }, []);
+
+  // ── カレンダーイベント CRUD ──
+  const handleAddCalendarEvent = useCallback((event: Omit<CalendarEventItem, "id" | "created_at">) => {
+    setCalendarEvents(prev => [...prev, { ...event, id: uid(), created_at: new Date().toISOString() }]);
+  }, []);
+  const handleUpdateCalendarEvent = useCallback((id: string, updates: Partial<CalendarEventItem>) => {
+    setCalendarEvents(prev => prev.map(ev => ev.id === id ? { ...ev, ...updates } : ev));
+  }, []);
+  const handleDeleteCalendarEvent = useCallback((id: string) => {
+    setCalendarEvents(prev => prev.filter(ev => ev.id !== id));
   }, []);
 
   // 次の給料日まで残り何日
@@ -149,6 +166,7 @@ export function FinanceDashboard() {
       <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 flex gap-1 shrink-0">
         {([
           { key: "dashboard", label: "ダッシュボード", icon: BarChart2 },
+          { key: "calendar",  label: "カレンダー",     icon: CalendarIcon },
           { key: "settings",  label: "設定",           icon: Settings  },
         ] as const).map(({ key, label, icon: Icon }) => (
           <button
@@ -186,6 +204,17 @@ export function FinanceDashboard() {
               onUpdate={handleUpdateExtra}
             />
           </>
+        ) : tab === "calendar" ? (
+          <PaydayCalendarView
+            cycle={cycle}
+            fixedCosts={fixedCosts}
+            savingPlans={savingPlans}
+            extraExpenses={extraExpenses}
+            calendarEvents={calendarEvents}
+            onAddEvent={handleAddCalendarEvent}
+            onUpdateEvent={handleUpdateCalendarEvent}
+            onDeleteEvent={handleDeleteCalendarEvent}
+          />
         ) : (
           <SettingsPanel
             cycle={cycle}
