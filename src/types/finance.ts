@@ -103,3 +103,25 @@ export const LS_KEY_EXTRAS   = "ft_extra_expenses";
 export const LS_KEY_EVENTS   = "ft_calendar_events";
 export const LS_KEY_CATEGORY_COLORS = "ft_category_colors";
 
+/** バックアップエクスポート用データ構造 */
+export interface FinanceBackupData {
+  version: string;
+  exportedAt: string;
+  cycle: PaydayCycle;
+  fixedCosts: FixedCost[];
+  savingPlans: SavingPlan[];
+  extraExpenses: ExtraExpense[];
+  calendarEvents: CalendarEventItem[];
+  categoryColors: CategoryColors;
+}
+
+/** 検索フィルターのステート */
+export interface SearchFilterState {
+  keyword: string;
+  category: "all" | "fixed" | "saving" | "extra" | "event" | "income";
+  type: "all" | "income" | "expense";
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+

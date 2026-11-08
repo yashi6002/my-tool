@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   PaydayCycle,
   FixedCost,
@@ -30,6 +30,7 @@ interface Props {
   extraExpenses: ExtraExpense[];
   calendarEvents: CalendarEventItem[];
   categoryColors?: CategoryColors;
+  targetHighlightDate?: string | null;
   onAddEvent: (event: Omit<CalendarEventItem, "id" | "created_at">) => void;
   onUpdateEvent: (id: string, updates: Partial<CalendarEventItem>) => void;
   onDeleteEvent: (id: string) => void;
@@ -55,6 +56,7 @@ export function PaydayCalendarView({
   extraExpenses,
   calendarEvents,
   categoryColors = DEFAULT_CATEGORY_COLORS,
+  targetHighlightDate,
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
@@ -62,11 +64,57 @@ export function PaydayCalendarView({
   // サイクルオフセット (0 = 現在のサイクル, -1 = 1つ前, +1 = 1つ次)
   const [cycleOffset, setCycleOffset] = useState<number>(0);
 
+  // 一時的なハイライト日付セル
+  const [activeHighlightDate, setActiveHighlightDate] = useState<string | null>(null);
+
   // モーダル管理
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
 
   // 今日の日付 (YYYY-MM-DD)
   const todayStr = useMemo(() => toDateStr(new Date()), []);
+
+  // 外部からの targetHighlightDate に反応してサイクル切り替え & スクロール & ハイライト
+  useEffect(() => {
+    if (!targetHighlightDate) return;
+    const parts = targetHighlightDate.split("-");
+    if (parts.length !== 3) return;
+    const tYear = parseInt(parts[0], 10);
+    const tMonth = parseInt(parts[1], 10) - 1;
+    const tDay = parseInt(parts[2], 10);
+    const payday = Math.max(1, Math.min(31, cycle.payday || 25));
+
+    const today = new Date();
+    let baseYear = today.getFullYear();
+    let baseMonth = today.getMonth();
+    if (today.getDate() < payday) {
+      baseMonth -= 1;
+    }
+
+    let targetBaseYear = tYear;
+    let targetBaseMonth = tMonth;
+    if (tDay < payday) {
+      targetBaseMonth -= 1;
+    }
+
+    const calculatedOffset = (targetBaseYear - baseYear) * 12 + (targetBaseMonth - baseMonth);
+    setCycleOffset(calculatedOffset);
+    setActiveHighlightDate(targetHighlightDate);
+
+    // DOM描画後にスクロール
+    setTimeout(() => {
+      const el = document.getElementById(`cal-cell-${targetHighlightDate}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 150);
+
+    // 4秒後にハイライト解除
+    const timer = setTimeout(() => {
+      setActiveHighlightDate(null);
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [targetHighlightDate, cycle.payday]);
 
   // ──────────────────────────────────────────
   // 1. 給料日基準サイクルの開始日・終了日を計算
@@ -424,9 +472,14 @@ export function PaydayCalendarView({
             const isPayday = d.getDate() === cycle.payday;
             const dayOfWeek = d.getDay();
 
+            const isHighlighted = activeHighlightDate === dStr;
+
             // スタイリングの決定
-            let cellClasses = "min-h-[105px] p-1.5 sm:p-2 rounded-xl transition-all duration-150 flex flex-col justify-between cursor-pointer group relative ";
-            if (isToday) {
+            let cellClasses = "min-h-[105px] p-1.5 sm:p-2 rounded-xl transition-all duration-200 flex flex-col justify-between cursor-pointer group relative ";
+            if (isHighlighted) {
+              // 検索やジャンプからの注目ハイライト（アニメーション点滅）
+              cellClasses += "bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-500 shadow-xl ring-4 ring-amber-400 scale-[1.03] z-10 animate-bounce ";
+            } else if (isToday) {
               // 今日: 鮮やかなエメラルドグリーンの薄いハイライト背景と強調枠線
               cellClasses += "bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 ";
             } else if (isPast) {
@@ -440,6 +493,7 @@ export function PaydayCalendarView({
             return (
               <div
                 key={dStr}
+                id={`cal-cell-${dStr}`}
                 onClick={() => setSelectedDateStr(dStr)}
                 className={cellClasses}
               >

@@ -4,11 +4,15 @@ import { useState } from "react";
 import {
   FixedCost,
   SavingPlan,
+  ExtraExpense,
+  CalendarEventItem,
   PaydayCycle,
   CategoryColors,
   DEFAULT_CATEGORY_COLORS,
   PRESET_COLORS,
+  FinanceBackupData,
 } from "@/types/finance";
+import { DataBackupSection } from "./DataBackupSection";
 import {
   TrendingDown,
   PiggyBank,
@@ -19,12 +23,15 @@ import {
   Edit2,
   Plus,
   RotateCcw,
+  Database,
 } from "lucide-react";
 
 interface Props {
   cycle: PaydayCycle;
   fixedCosts: FixedCost[];
   savingPlans: SavingPlan[];
+  extraExpenses?: ExtraExpense[];
+  calendarEvents?: CalendarEventItem[];
   categoryColors: CategoryColors;
   onUpdateCycle: (c: PaydayCycle) => void;
   onUpdateCategoryColors: (colors: CategoryColors) => void;
@@ -34,6 +41,9 @@ interface Props {
   onAddSaving: (data: Omit<SavingPlan, "id" | "created_at">) => void;
   onDeleteSaving: (id: string) => void;
   onUpdateSaving: (id: string, data: Partial<SavingPlan>) => void;
+  onRestoreData?: (backup: FinanceBackupData) => void;
+  onResetData?: () => void;
+  onInsertDemoData?: () => void;
 }
 
 const fmt = (n: number) =>
@@ -43,6 +53,8 @@ export function SettingsPanel({
   cycle,
   fixedCosts,
   savingPlans,
+  extraExpenses = [],
+  calendarEvents = [],
   categoryColors,
   onUpdateCycle,
   onUpdateCategoryColors,
@@ -52,6 +64,9 @@ export function SettingsPanel({
   onAddSaving,
   onDeleteSaving,
   onUpdateSaving,
+  onRestoreData,
+  onResetData,
+  onInsertDemoData,
 }: Props) {
   const [localCycle, setLocalCycle] = useState(cycle);
   const [cycleEditing, setCycleEditing] = useState(false);
@@ -565,6 +580,37 @@ export function SettingsPanel({
           })}
         </div>
       </section>
+
+      {/* 5. データ管理 ＆ バックアップ */}
+      {onRestoreData && onResetData && onInsertDemoData && (
+        <section className="pt-2">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <Database className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100">
+                データ管理 ＆ バックアップ
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                JSON/CSVでの保存・復元、デモデータの挿入、全データ初期化
+              </p>
+            </div>
+          </div>
+
+          <DataBackupSection
+            cycle={cycle}
+            fixedCosts={fixedCosts}
+            savingPlans={savingPlans}
+            extraExpenses={extraExpenses}
+            calendarEvents={calendarEvents}
+            categoryColors={categoryColors}
+            onRestoreData={onRestoreData}
+            onResetData={onResetData}
+            onInsertDemoData={onInsertDemoData}
+          />
+        </section>
+      )}
     </div>
   );
 }
