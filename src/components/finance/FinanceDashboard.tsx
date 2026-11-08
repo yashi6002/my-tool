@@ -201,39 +201,39 @@ export function FinanceDashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="relative flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 text-slate-100 transition-colors duration-300">
+    <div className="relative flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-zinc-100 dark:from-slate-950 dark:via-slate-900 dark:to-zinc-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
       {/* ── 背景の美しいスポットライト・メッシュ装飾 ── */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/10 blur-[130px] pointer-events-none" />
-      <div className="absolute top-1/4 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-500/10 blur-[150px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-[500px] h-[500px] rounded-full bg-teal-500/10 blur-[140px] pointer-events-none" />
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/15 dark:bg-emerald-500/10 blur-[130px] pointer-events-none" />
+      <div className="absolute top-1/4 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-500/10 dark:bg-indigo-500/10 blur-[150px] pointer-events-none" />
+      <div className="absolute -bottom-32 left-1/3 w-[500px] h-[500px] rounded-full bg-teal-500/10 dark:bg-teal-500/10 blur-[140px] pointer-events-none" />
 
       <EnvNoticeBanner />
 
-      {/* ── ヘッダー（Glassmorphism） ── */}
-      <header className="h-14 border-b border-white/10 dark:border-white/10 px-4 sm:px-6 flex items-center justify-between bg-slate-900/70 backdrop-blur-md shrink-0 z-20">
+      {/* ── ヘッダー（Glassmorphism 両対応） ── */}
+      <header className="h-14 border-b border-slate-200/80 dark:border-white/10 px-4 sm:px-6 flex items-center justify-between bg-white/80 dark:bg-slate-900/70 backdrop-blur-md shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-gradient-to-tr from-emerald-500 to-teal-600 rounded-xl text-white shadow-md ring-1 ring-white/20">
+          <div className="p-1.5 bg-gradient-to-tr from-emerald-500 to-teal-600 rounded-xl text-white shadow-md ring-1 ring-black/5 dark:ring-white/20">
             <Wallet className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="font-bold text-sm sm:text-base leading-tight tracking-tight text-white flex items-center gap-2">
+            <h1 className="font-bold text-sm sm:text-base leading-tight tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <span>資金管理ダッシュボード</span>
             </h1>
-            <p className="text-[10px] text-slate-400 font-mono hidden sm:block">給料日サイクル型 自由額 ＆ 将来計画</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono hidden sm:block">給料日サイクル型 自由額 ＆ 将来計画</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
           {/* ユーザーアカウント / ログインボタン */}
           {user ? (
-            <div className="flex items-center gap-2 bg-slate-800/80 border border-white/10 rounded-full px-2.5 py-1 text-xs">
-              <UserIcon className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="max-w-[110px] sm:max-w-[160px] truncate font-medium text-slate-200">
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-full px-2.5 py-1 text-xs">
+              <UserIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="max-w-[110px] sm:max-w-[160px] truncate font-medium text-slate-700 dark:text-slate-200">
                 {user.email}
               </span>
               <button
                 onClick={handleSignOut}
-                className="p-1 text-slate-400 hover:text-rose-400 transition-colors ml-0.5"
+                className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors ml-0.5"
                 title="ログアウト"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -242,7 +242,7 @@ export function FinanceDashboard() {
           ) : (
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-full transition-all shadow-xs"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-full transition-all shadow-xs"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>ログイン / 登録</span>
@@ -252,7 +252,7 @@ export function FinanceDashboard() {
           {/* リマインダー手動再表示ボタン */}
           <button
             onClick={() => setShowReminder(true)}
-            className="p-1.5 rounded-xl border border-white/10 text-slate-400 hover:text-amber-400 hover:bg-slate-800/60 transition-colors relative"
+            className="p-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors relative"
             title="直近の支出リマインダーを表示"
           >
             <Bell className="w-4 h-4" />
@@ -261,18 +261,18 @@ export function FinanceDashboard() {
 
           {/* 次の給料日バッジ */}
           {cycle.payday > 0 && (
-            <span className="hidden md:inline-flex items-center gap-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full shadow-xs">
+            <span className="hidden md:inline-flex items-center gap-1 text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full shadow-xs">
               💴 あと{daysToPayday}日
             </span>
           )}
 
-          <div className="h-4 w-px bg-white/10 hidden sm:block" />
+          <div className="h-4 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
           <ThemeToggle />
         </div>
       </header>
 
-      {/* ── ページ内クイックジャンプナビ（Glassmorphism） ── */}
-      <nav className="border-b border-white/10 bg-slate-900/50 backdrop-blur-md px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto shrink-0 z-10">
+      {/* ── ページ内クイックジャンプナビ（Glassmorphism 両対応） ── */}
+      <nav className="border-b border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-slate-900/50 backdrop-blur-md px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto shrink-0 z-10">
         <span className="text-[11px] font-semibold text-slate-400 mr-1 hidden sm:inline">ジャンプ:</span>
         {[
           { id: "section-chart",    label: "資金配分（円グラフ）", icon: BarChart2 },
@@ -283,7 +283,7 @@ export function FinanceDashboard() {
           <button
             key={id}
             onClick={() => scrollToSection(id)}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5 border border-transparent hover:border-slate-300 dark:hover:border-white/10 transition-all shrink-0"
           >
             <Icon className="w-3.5 h-3.5 text-slate-400" />
             {label}
