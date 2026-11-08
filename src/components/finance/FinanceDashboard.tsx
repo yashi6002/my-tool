@@ -150,25 +150,25 @@ export function FinanceDashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
       <EnvNoticeBanner />
 
       {/* ── ヘッダー ── */}
-      <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 px-6 flex items-center justify-between bg-white dark:bg-zinc-900 shrink-0 z-20">
+      <header className="h-14 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0 z-20">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-gradient-to-tr from-emerald-500 to-teal-600 rounded-xl text-white shadow-xs">
             <Wallet className="w-4 h-4" />
           </div>
           <div>
             <h1 className="font-bold text-base leading-tight tracking-tight">資金管理ダッシュボード</h1>
-            <p className="text-[10px] text-zinc-400 font-mono">給料日サイクル型 自由額 ＆ 将来計画</p>
+            <p className="text-[10px] text-slate-400 font-mono">給料日サイクル型 自由額 ＆ 将来計画</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {/* リマインダー手動再表示ボタン */}
           <button
             onClick={() => setShowReminder(true)}
-            className="p-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors relative"
+            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
             title="直近の支出リマインダーを表示"
           >
             <Bell className="w-4 h-4" />
@@ -181,14 +181,14 @@ export function FinanceDashboard() {
               💴 次の給料日まで あと{daysToPayday}日
             </span>
           )}
-          <div className="h-4 w-px bg-zinc-200 dark:border-zinc-800 hidden sm:block" />
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
           <ThemeToggle />
         </div>
       </header>
 
       {/* ── ページ内クイックジャンプナビ ── */}
-      <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xs px-6 py-2 flex items-center gap-2 overflow-x-auto shrink-0 z-10">
-        <span className="text-[11px] font-semibold text-zinc-400 mr-1 hidden sm:inline">ジャンプ:</span>
+      <nav className="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs px-6 py-2 flex items-center gap-2 overflow-x-auto shrink-0 z-10">
+        <span className="text-[11px] font-semibold text-slate-400 mr-1 hidden sm:inline">ジャンプ:</span>
         {[
           { id: "section-chart",    label: "資金配分（円グラフ）", icon: BarChart2 },
           { id: "section-calendar", label: "給料日カレンダー",     icon: CalendarIcon },
@@ -198,9 +198,9 @@ export function FinanceDashboard() {
           <button
             key={id}
             onClick={() => scrollToSection(id)}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
           >
-            <Icon className="w-3.5 h-3.5 text-zinc-400" />
+            <Icon className="w-3.5 h-3.5 text-slate-400" />
             {label}
           </button>
         ))}

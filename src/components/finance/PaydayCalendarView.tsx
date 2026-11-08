@@ -279,16 +279,16 @@ export function PaydayCalendarView({
   return (
     <div className="space-y-4">
       {/* ── サイクルヘッダー ＆ コントロール ── */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-xs">
+      <div className="bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs backdrop-blur-xs">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* 左側：サイクル切り替え */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
               <CalendarIcon className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
                   {cycleTitle}
                 </h2>
                 {cycleOffset === 0 ? (
@@ -296,12 +296,12 @@ export function PaydayCalendarView({
                     <Sparkles className="w-3 h-3 animate-pulse" /> 今期サイクル
                   </span>
                 ) : (
-                  <span className="text-[10px] bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 px-2 py-0.5 rounded-full font-medium">
+                  <span className="text-[10px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 px-2 py-0.5 rounded-full font-medium">
                     {cycleOffset > 0 ? `${cycleOffset}期先` : `${Math.abs(cycleOffset)}期前`}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-slate-400">
                 給料日（毎月{cycle.payday}日）を起点とした自動残高シミュレーション
               </p>
             </div>
@@ -311,7 +311,7 @@ export function PaydayCalendarView({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCycleOffset((v) => v - 1)}
-              className="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-medium flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1 transition-colors"
               title="前のサイクルへ"
             >
               <ChevronLeft className="w-4 h-4" /> 前期
@@ -326,7 +326,7 @@ export function PaydayCalendarView({
             )}
             <button
               onClick={() => setCycleOffset((v) => v + 1)}
-              className="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-medium flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1 transition-colors"
               title="次のサイクルへ"
             >
               次期 <ChevronRight className="w-4 h-4" />
@@ -335,9 +335,9 @@ export function PaydayCalendarView({
         </div>
 
         {/* サイクルサマリーバー */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-          <div className="bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl p-2.5 text-center">
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center justify-center gap-0.5">
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl p-2.5 text-center border border-emerald-100/60 dark:border-emerald-900/30">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-0.5">
               <ArrowUpRight className="w-3 h-3 text-emerald-500" />
               サイクル総入金
             </p>
@@ -345,8 +345,8 @@ export function PaydayCalendarView({
               +{fmt(cycleSummary.totalIncome)}
             </p>
           </div>
-          <div className="bg-rose-50/70 dark:bg-rose-950/30 rounded-xl p-2.5 text-center">
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center justify-center gap-0.5">
+          <div className="bg-rose-50/70 dark:bg-rose-950/30 rounded-xl p-2.5 text-center border border-rose-100/60 dark:border-rose-900/30">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-0.5">
               <ArrowDownRight className="w-3 h-3 text-rose-500" />
               サイクル総出費
             </p>
@@ -354,18 +354,18 @@ export function PaydayCalendarView({
               -{fmt(cycleSummary.totalExpense)}
             </p>
           </div>
-          <div className={`rounded-xl p-2.5 text-center ${
+          <div className={`rounded-xl p-2.5 text-center border ${
             cycleSummary.finalBalance >= 0
-              ? "bg-zinc-100/80 dark:bg-zinc-800"
-              : "bg-red-50 dark:bg-red-950/40"
+              ? "bg-slate-100/80 dark:bg-slate-800/50 border-slate-200/60 dark:border-slate-700/60"
+              : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/40"
           }`}>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center justify-center gap-0.5">
-              <Wallet className="w-3 h-3 text-zinc-400" />
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-0.5">
+              <Wallet className="w-3 h-3 text-slate-400" />
               期末予測残高
             </p>
             <p className={`text-sm font-black ${
               cycleSummary.finalBalance >= 0
-                ? "text-zinc-800 dark:text-zinc-100"
+                ? "text-slate-800 dark:text-slate-100"
                 : "text-red-500 font-bold"
             }`}>
               {fmt(cycleSummary.finalBalance)}
@@ -375,7 +375,7 @@ export function PaydayCalendarView({
       </div>
 
       {/* ── カレンダーグリッド ── */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm overflow-hidden">
+      <div className="bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm overflow-hidden backdrop-blur-xs">
         {/* 曜日ヘッダー */}
         <div className="grid grid-cols-7 gap-1.5 mb-2">
           {WEEKDAYS.map((w, idx) => (
@@ -386,7 +386,7 @@ export function PaydayCalendarView({
                   ? "text-red-500 bg-red-50/60 dark:bg-red-950/30"
                   : idx === 6
                   ? "text-blue-500 bg-blue-50/60 dark:bg-blue-950/30"
-                  : "text-zinc-500 bg-zinc-50 dark:bg-zinc-800/60"
+                  : "text-slate-500 bg-slate-50 dark:bg-slate-800/60"
               }`}
             >
               {w}
@@ -402,7 +402,7 @@ export function PaydayCalendarView({
               return (
                 <div
                   key={`pad-${idx}`}
-                  className="min-h-[105px] rounded-xl border border-dashed border-zinc-100 dark:border-zinc-800/40 bg-zinc-50/40 dark:bg-zinc-900/20"
+                  className="min-h-[100px] rounded-xl border border-dashed border-slate-200/50 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/30"
                 />
               );
             }
@@ -419,14 +419,16 @@ export function PaydayCalendarView({
             const dayOfWeek = d.getDay();
 
             // スタイリングの決定
-            let cellClasses = "min-h-[115px] p-2 rounded-xl transition-all flex flex-col justify-between cursor-pointer group relative ";
+            let cellClasses = "min-h-[105px] p-1.5 sm:p-2 rounded-xl transition-all flex flex-col justify-between cursor-pointer group relative ";
             if (isToday) {
-              cellClasses += "bg-emerald-50/90 dark:bg-emerald-950/50 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 ";
+              // 今日: ひと目でわかる強力な強調
+              cellClasses += "bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 ";
             } else if (isPast) {
-              cellClasses += "bg-zinc-100/70 dark:bg-zinc-900/40 text-zinc-400 dark:text-zinc-500 border border-zinc-200/60 dark:border-zinc-800/60 opacity-80 hover:opacity-100 hover:border-zinc-400 ";
+              // 過去: トーンを大きく落とした半透明グレー
+              cellClasses += "bg-slate-100/50 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border border-slate-200/50 dark:border-slate-800/50 opacity-60 hover:opacity-100 hover:border-slate-400 transition-opacity ";
             } else {
-              // 未来
-              cellClasses += "bg-white dark:bg-zinc-800/80 text-zinc-800 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700/80 hover:border-emerald-400 hover:shadow-xs ";
+              // 未来: スッキリとした通常背景
+              cellClasses += "bg-white dark:bg-slate-850 dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-400 hover:shadow-xs ";
             }
 
             return (
@@ -439,16 +441,18 @@ export function PaydayCalendarView({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <span
-                      className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center ${
+                      className={`text-xs font-bold w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center ${
                         isToday
-                          ? "bg-emerald-600 text-white shadow-xs font-black"
+                          ? "bg-emerald-600 text-white shadow-xs font-black ring-1 ring-emerald-400"
                           : isPayday
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-extrabold"
+                          : isPast
+                          ? "text-slate-400 dark:text-slate-500 font-normal"
                           : dayOfWeek === 0
                           ? "text-red-500"
                           : dayOfWeek === 6
                           ? "text-blue-500"
-                          : ""
+                          : "text-slate-700 dark:text-slate-200"
                       }`}
                     >
                       {d.getDate()}
@@ -456,12 +460,12 @@ export function PaydayCalendarView({
 
                     <div className="flex items-center gap-1">
                       {isToday && (
-                        <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.2 rounded-full font-bold">
+                        <span className="text-[8.5px] bg-emerald-600 text-white px-1.5 py-0.2 rounded-full font-bold shadow-2xs">
                           今日
                         </span>
                       )}
                       {isPayday && !isToday && (
-                        <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-bold">
+                        <span className="text-[8.5px] bg-amber-500 text-white px-1.5 py-0.2 rounded-full font-bold">
                           給料日
                         </span>
                       )}
@@ -471,7 +475,7 @@ export function PaydayCalendarView({
                           e.stopPropagation();
                           setSelectedDateStr(dStr);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-zinc-400 hover:text-emerald-500"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-slate-400 hover:text-emerald-500"
                         title="収支を追加"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -479,16 +483,16 @@ export function PaydayCalendarView({
                     </div>
                   </div>
 
-                  {/* 収支アイテムリスト（最大3件まで表示、溢れたら+○件） */}
-                  <div className="space-y-1">
+                  {/* 収支アイテムリスト（コンパクト化） */}
+                  <div className="space-y-0.5 sm:space-y-1">
                     {items.slice(0, 3).map((item) => (
                       <div
                         key={item.id}
-                        className="text-[10px] leading-tight px-1.5 py-0.5 rounded flex items-center justify-between truncate"
+                        className="text-[9px] leading-tight px-1.5 py-0.5 rounded flex items-center justify-between truncate"
                         style={{
-                          backgroundColor: `${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}20`,
+                          backgroundColor: `${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}1a`,
                           color: item.color || (item.type === "income" ? "#10b981" : "#f43f5e"),
-                          borderLeft: `2.5px solid ${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}`,
+                          borderLeft: `2px solid ${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}`,
                         }}
                         title={`${item.name} (${item.type === "income" ? "+" : "-"}${fmt(item.amount)})`}
                       >
@@ -502,26 +506,30 @@ export function PaydayCalendarView({
                       </div>
                     ))}
                     {items.length > 3 && (
-                      <p className="text-[9px] text-zinc-400 text-right font-medium">
+                      <p className="text-[8.5px] text-slate-400 text-right font-medium">
                         他 +{items.length - 3}件
                       </p>
                     )}
                   </div>
                 </div>
 
-                {/* セル下部：その日時点の予測残高 */}
-                <div className="mt-1 pt-1 border-t border-zinc-100/60 dark:border-zinc-800/60 flex items-center justify-between">
-                  <span className="text-[9px] text-zinc-400">残高</span>
+                {/* セル下部：その日時点の予測残高（コンパクト化） */}
+                <div className="mt-1 pt-0.5 border-t border-slate-100/60 dark:border-slate-800/60 flex items-center justify-between text-[9px]">
+                  <span className="text-slate-400">残高</span>
                   <span
-                    className={`text-[10px] font-bold tracking-tight ${
+                    className={`font-bold tracking-tight ${
                       balance < 0
                         ? "text-red-500 font-extrabold"
                         : isToday
                         ? "text-emerald-700 dark:text-emerald-300 font-extrabold"
-                        : "text-zinc-600 dark:text-zinc-300"
+                        : isPast
+                        ? "text-slate-400 dark:text-slate-500"
+                        : "text-slate-600 dark:text-slate-300"
                     }`}
                   >
-                    {fmt(balance)}
+                    {balance >= 100000 || balance <= -100000
+                      ? `${(balance / 10000).toFixed(1)}万`
+                      : fmt(balance)}
                   </span>
                 </div>
               </div>

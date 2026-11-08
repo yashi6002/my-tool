@@ -206,10 +206,10 @@ export function RecentExpensesReminder({
         <div
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className="fixed bottom-6 right-6 z-40 w-[90vw] max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300"
+          className="fixed bottom-6 right-6 z-40 w-[90vw] max-w-sm bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300"
         >
           {/* 自動消去プログレスバー */}
-          <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1">
+          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1">
             <div
               className="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-75 ease-linear"
               style={{ width: `${progress}%` }}
@@ -224,13 +224,13 @@ export function RecentExpensesReminder({
                   <Bell className="w-4 h-4 animate-bounce" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     直近の支出リマインダー
                     <span className="text-[10px] bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 px-1.5 py-0.2 rounded-full font-bold">
                       {upcomingExpenses.length}件
                     </span>
                   </h4>
-                  <p className="text-[10px] text-zinc-400">
+                  <p className="text-[10px] text-slate-400">
                     タップで詳細を確認できます
                   </p>
                 </div>
@@ -238,7 +238,7 @@ export function RecentExpensesReminder({
 
               <button
                 onClick={handleClose}
-                className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-md transition-colors"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors"
                 title="閉じる"
               >
                 <X className="w-4 h-4" />
@@ -260,7 +260,7 @@ export function RecentExpensesReminder({
                   <button
                     key={item.id}
                     onClick={() => setSelectedItem(item)}
-                    className="w-full text-left p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex items-center justify-between group cursor-pointer"
+                    className="w-full text-left p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between group cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5 truncate mr-2">
                       <span
@@ -268,17 +268,17 @@ export function RecentExpensesReminder({
                         style={{ backgroundColor: item.color }}
                       />
                       <div className="truncate">
-                        <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                           {item.name}
                         </p>
-                        <p className="text-[10px] text-zinc-400 flex items-center gap-1">
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           <span>{item.dateStr}</span>
                           <span
                             className={`font-semibold ml-0.5 px-1 rounded text-[9px] ${
                               isUrgent
                                 ? "bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400 animate-pulse"
-                                : "bg-zinc-200/70 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                                : "bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                             }`}
                           >
                             {badgeLabel}
@@ -291,7 +291,7 @@ export function RecentExpensesReminder({
                       <span className="text-xs font-black text-rose-500 dark:text-rose-400">
                         -{fmt(item.amount)}
                       </span>
-                      <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </button>
                 );
@@ -304,11 +304,11 @@ export function RecentExpensesReminder({
       {/* ── 詳細表示モーダル ── */}
       {selectedItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setSelectedItem(null)}
         >
           <div
-            className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ヘッダー */}
@@ -319,10 +319,10 @@ export function RecentExpensesReminder({
                   style={{ backgroundColor: selectedItem.color }}
                 />
                 <div>
-                  <h3 className="font-bold text-base text-zinc-900 dark:text-zinc-100">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
                     {selectedItem.name}
                   </h3>
-                  <span className="text-[10px] text-zinc-400 font-mono">
+                  <span className="text-[10px] text-slate-400 font-mono">
                     {selectedItem.source === "fixed" ? "固定費・引き落とし" :
                      selectedItem.source === "extra" ? "予定された臨時出費" : "登録された収支予定"}
                   </span>
@@ -330,14 +330,14 @@ export function RecentExpensesReminder({
               </div>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 金額ハイライト */}
-            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-xl p-4 text-center">
+            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-xl p-4 text-center">
               <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mb-0.5">
                 予定出金額
               </p>
@@ -347,22 +347,22 @@ export function RecentExpensesReminder({
             </div>
 
             {/* 詳細情報リスト */}
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                <span className="text-zinc-400 flex items-center gap-1.5">
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                <span className="text-slate-400 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5" /> 予定日
                 </span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
                   {selectedItem.dateStr}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                <span className="text-zinc-400 flex items-center gap-1.5">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                <span className="text-slate-400 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" /> 残り日数
                 </span>
                 <span className={`font-bold ${
-                  selectedItem.diffDays <= 2 ? "text-red-500 font-black" : "text-zinc-700 dark:text-zinc-300"
+                  selectedItem.diffDays <= 2 ? "text-red-500 font-black" : "text-slate-700 dark:text-slate-300"
                 }`}>
                   {selectedItem.diffDays === 0 ? "本日引き落とし・予定日！" :
                    selectedItem.diffDays === 1 ? "明日引き落とし・予定日！" :
@@ -371,9 +371,9 @@ export function RecentExpensesReminder({
               </div>
 
               {selectedItem.memo && (
-                <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 space-y-1">
-                  <span className="text-zinc-400 block text-[11px]">メモ・補足</span>
-                  <p className="text-zinc-700 dark:text-zinc-200 font-medium">
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 space-y-1">
+                  <span className="text-slate-400 block text-[11px]">メモ・補足</span>
+                  <p className="text-slate-700 dark:text-slate-200 font-medium">
                     {selectedItem.memo}
                   </p>
                 </div>
@@ -382,7 +382,7 @@ export function RecentExpensesReminder({
 
             <button
               onClick={() => setSelectedItem(null)}
-              className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-xs transition-colors"
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs transition-colors"
             >
               閉じる
             </button>
@@ -392,3 +392,4 @@ export function RecentExpensesReminder({
     </>
   );
 }
+

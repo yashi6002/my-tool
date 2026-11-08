@@ -43,7 +43,8 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
   const totalFixed  = useMemo(() => fixedCosts.reduce((s, c) => s + c.amount, 0), [fixedCosts]);
   const totalSaving = useMemo(() => savingPlans.reduce((s, p) => s + p.amount, 0), [savingPlans]);
   const totalExtra  = useMemo(() => extraExpenses.reduce((s, e) => s + e.amount, 0), [extraExpenses]);
-  const freeAmount  = Math.max(0, salary - totalFixed - totalSaving - totalExtra);
+  const totalExpenses = totalFixed + totalSaving + totalExtra;
+  const freeAmount  = Math.max(0, salary - totalExpenses);
 
   const data = [
     { name: "固定費・引落", value: totalFixed,  color: categoryColors.fixed  },
@@ -52,7 +53,7 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
     { name: "自由に使える", value: freeAmount,  color: categoryColors.free   },
   ].filter(d => d.value > 0);
 
-  const overBudget = salary > 0 && freeAmount === 0 && (totalFixed + totalSaving + totalExtra) > salary;
+  const overBudget = salary > 0 && freeAmount === 0 && totalExpenses > salary;
 
   const summaryCards = [
     { label: "固定費・引落", amount: totalFixed,  icon: TrendingDown, hexColor: categoryColors.fixed },
@@ -61,25 +62,49 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
   ];
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-      <h2 className="font-bold text-lg mb-4 text-zinc-800 dark:text-zinc-100">今月の資金配分</h2>
+    <div className="bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 md:p-6 shadow-sm backdrop-blur-xs space-y-5">
+      {/* ── 最上部：最重要情報「自由に使っていいお金（フリー額）」のヒーロー強調表示 ── */}
+      <div className={`relative overflow-hidden rounded-2xl p-5 md:p-6 text-center border-2 transition-all ${
+        overBudget
+          ? "border-red-500/70 bg-gradient-to-b from-red-500/10 via-red-500/5 to-transparent shadow-red-500/5 shadow-lg"
+          : "border-emerald-500/70 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent shadow-emerald-500/5 shadow-lg"
+      }`}>
+        <div className="flex items-center justify-center gap-1.5 text-xs md:text-sm font-semibold tracking-wide text-slate-600 dark:text-slate-300 mb-1">
+          <Wallet className={`w-4 h-4 ${overBudget ? "text-red-500" : "text-emerald-500"}`} />
+          <span>現在 自由に使っていいお金（フリー額）</span>
+        </div>
+        <p className={`text-3xl md:text-5xl font-black tracking-tight ${
+          overBudget ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+        }`}>
+          {overBudget ? "予算オーバー!" : fmt(freeAmount)}
+        </p>
+        {overBudget ? (
+          <p className="text-xs text-red-500 dark:text-red-400 font-medium mt-1">
+            {fmt(Math.abs(salary - totalExpenses))} 超過しています
+          </p>
+        ) : (
+          <p className="text-[11px] text-slate-400 font-medium mt-1">
+            今サイクルで他の出費や貯金を差し引いた、今後自由に使える予測残高です
+          </p>
+        )}
+      </div>
 
       {salary === 0 ? (
-        <p className="text-zinc-400 text-sm text-center py-8">
-          右上の「設定」から給与額を入力してください
+        <p className="text-slate-400 text-sm text-center py-6">
+          下部の「設定」から給与額を入力してください
         </p>
       ) : (
-        <div className="flex flex-col lg:flex-row items-center gap-6">
-          {/* 円グラフ */}
-          <div className="relative w-52 h-52 shrink-0">
+        <div className="flex flex-col lg:flex-row items-center gap-6 pt-1">
+          {/* 円グラフ（コンパクト配置） */}
+          <div className="relative w-48 h-48 sm:w-52 sm:h-52 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={90}
+                  innerRadius={52}
+                  outerRadius={86}
                   paddingAngle={3}
                   dataKey="value"
                   labelLine={false}
@@ -91,57 +116,59 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
                 </Pie>
                 <Tooltip
                   formatter={(v) => fmt(typeof v === "number" ? v : 0)}
-                  contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{
+                    backgroundColor: "rgba(15, 23, 42, 0.95)",
+                    borderColor: "rgba(51, 65, 85, 0.6)",
+                    borderRadius: 10,
+                    fontSize: 12,
+                    color: "#f8fafc",
+                  }}
+                  itemStyle={{ color: "#f8fafc" }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          {/* 右側：自由残高 & 内訳 */}
-          <div className="flex-1 flex flex-col gap-4 w-full">
-            {/* 自由に使える額（大きく強調表示） */}
-            <div className={`rounded-xl p-4 text-center border-2 ${
-              overBudget
-                ? "border-red-400 bg-red-50 dark:bg-red-950/30"
-                : "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"
-            }`}>
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 flex items-center justify-center gap-1">
-                <Wallet className="w-3.5 h-3.5" />
-                現在 自由に使っていい残高
-              </p>
-              <p className={`text-3xl font-black tracking-tight ${
-                overBudget ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"
-              }`}>
-                {overBudget ? "予算オーバー!" : fmt(freeAmount)}
-              </p>
-              {overBudget && (
-                <p className="text-xs text-red-400 mt-1">
-                  {fmt(Math.abs(freeAmount))} 超過しています
-                </p>
-              )}
+          {/* 右側：今サイクル概要＆内訳サマリー */}
+          <div className="flex-1 flex flex-col gap-3.5 w-full">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                資金配分内訳
+              </span>
+              <span className="text-xs text-slate-400">
+                給与総額: <span className="font-bold text-slate-700 dark:text-slate-200">{fmt(salary)}</span>
+              </span>
             </div>
 
-            {/* 内訳サマリー */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* 内訳カード群 */}
+            <div className="grid grid-cols-3 gap-2.5">
               {summaryCards.map(({ label, amount, icon: Icon, hexColor }) => (
                 <div
                   key={label}
-                  className="rounded-xl p-3 text-center border border-zinc-100 dark:border-zinc-800"
-                  style={{ backgroundColor: `${hexColor}15` }}
+                  className="rounded-xl p-2.5 sm:p-3 text-center border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/40"
                 >
                   <Icon className="w-4 h-4 mx-auto mb-1" style={{ color: hexColor }} />
-                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{label}</p>
-                  <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">{label}</p>
+                  <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">
                     {fmt(amount)}
                   </p>
                 </div>
               ))}
             </div>
 
-            {/* 給与総額 */}
-            <p className="text-xs text-zinc-400 text-right">
-              給与総額: <span className="font-semibold text-zinc-600 dark:text-zinc-300">{fmt(salary)}</span>
-            </p>
+            {/* 全体出費比率バー */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] text-slate-400">
+                <span>予定支出合計: <strong className="text-slate-700 dark:text-slate-200">{fmt(totalExpenses)}</strong></span>
+                <span>支出割合: <strong className="text-slate-700 dark:text-slate-200">{salary > 0 ? `${Math.round((totalExpenses / salary) * 100)}%` : "0%"}</strong></span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+                <div style={{ width: `${Math.min(100, salary > 0 ? (totalFixed / salary) * 100 : 0)}%`, backgroundColor: categoryColors.fixed }} />
+                <div style={{ width: `${Math.min(100, salary > 0 ? (totalSaving / salary) * 100 : 0)}%`, backgroundColor: categoryColors.saving }} />
+                <div style={{ width: `${Math.min(100, salary > 0 ? (totalExtra / salary) * 100 : 0)}%`, backgroundColor: categoryColors.extra }} />
+                <div style={{ width: `${Math.min(100, salary > 0 ? (freeAmount / salary) * 100 : 0)}%`, backgroundColor: categoryColors.free }} />
+              </div>
+            </div>
           </div>
         </div>
       )}
