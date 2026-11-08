@@ -57,10 +57,10 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
   };
 
   return (
-    <section className="bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 md:p-6 shadow-sm backdrop-blur-xs">
+    <section className="bg-slate-900/70 backdrop-blur-md rounded-2xl border border-white/10 p-5 md:p-6 shadow-xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="font-bold text-base md:text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h2 className="font-bold text-base md:text-lg text-white flex items-center gap-2">
             <Zap className="w-5 h-5 text-orange-400" />
             臨時出費・予定カード
           </h2>
@@ -70,7 +70,7 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
         </div>
         <button
           onClick={() => setShowForm(v => !v)}
-          className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors shadow-2xs"
+          className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors shadow-sm"
         >
           + 予定を追加
         </button>
@@ -78,22 +78,22 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
 
       {/* 追加フォーム */}
       {showForm && (
-        <div className="mb-4 p-4 rounded-xl bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/60 space-y-3">
+        <div className="mb-4 p-4 rounded-xl bg-orange-950/20 border border-orange-500/30 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">項目名 *</label>
+              <label className="text-xs font-medium text-slate-300 block mb-1">項目名 *</label>
               <input
-                className="w-full text-sm border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                className="w-full text-sm border border-slate-700 rounded-lg px-3 py-1.5 bg-slate-900 text-slate-100"
                 placeholder="例: 車検代、旅行費"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">予定金額 (円) *</label>
+              <label className="text-xs font-medium text-slate-300 block mb-1">予定金額 (円) *</label>
               <input
                 type="number"
-                className="w-full text-sm border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                className="w-full text-sm border border-slate-700 rounded-lg px-3 py-1.5 bg-slate-900 text-slate-100"
                 placeholder="50000"
                 value={form.amount}
                 onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
@@ -102,16 +102,16 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
           </div>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">予定日</label>
+              <label className="text-xs font-medium text-slate-300 block mb-1">予定日</label>
               <input
                 type="date"
-                className="text-sm border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                className="text-sm border border-slate-700 rounded-lg px-3 py-1.5 bg-slate-900 text-slate-100"
                 value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">表示カラー</label>
+              <label className="text-xs font-medium text-slate-300 block mb-1">表示カラー</label>
               <div className="flex items-center gap-1.5">
                 {PRESET_COLORS.map((p) => (
                   <button
@@ -132,9 +132,9 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">メモ</label>
+            <label className="text-xs font-medium text-slate-300 block mb-1">メモ</label>
             <textarea
-              className="w-full text-sm border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100 resize-none"
+              className="w-full text-sm border border-slate-700 rounded-lg px-3 py-1.5 bg-slate-900 text-slate-100 resize-none"
               rows={2}
               placeholder="自由メモ（見積もり内容、欲しいもの等）"
               value={form.memo}
@@ -144,7 +144,7 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowForm(false)}
-              className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-500"
+              className="text-xs px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200"
             >
               キャンセル
             </button>
@@ -161,7 +161,7 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
 
       {/* カード一覧 */}
       {expenses.length === 0 ? (
-        <p className="text-slate-400 text-sm text-center py-8 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+        <p className="text-slate-400 text-sm text-center py-8 border border-dashed border-white/10 rounded-xl bg-slate-900/30">
           予定されている臨時出費はありません
         </p>
       ) : (
@@ -173,39 +173,39 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
             return (
               <div
                 key={expense.id}
-                className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 dark:bg-slate-900/60 p-3.5 flex flex-col gap-2 transition-all hover:border-slate-300 dark:hover:border-slate-700"
+                className="rounded-xl border border-white/10 bg-slate-800/40 p-3.5 flex flex-col gap-2 transition-all hover:border-white/20 hover:bg-slate-800/60"
               >
                 {isEditing ? (
                   // 編集モード
                   <div className="space-y-2">
                     <input
-                      className="w-full text-xs border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 dark:text-slate-100"
+                      className="w-full text-xs border border-slate-600 rounded-lg px-2 py-1 bg-slate-900 text-slate-100"
                       value={editForm.name ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                     />
                     <input
                       type="number"
-                      className="w-full text-xs border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 dark:text-slate-100"
+                      className="w-full text-xs border border-slate-600 rounded-lg px-2 py-1 bg-slate-900 text-slate-100"
                       value={editForm.amount ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, amount: Number(e.target.value) }))}
                     />
                     <input
                       type="date"
-                      className="w-full text-xs border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 dark:text-slate-100"
+                      className="w-full text-xs border border-slate-600 rounded-lg px-2 py-1 bg-slate-900 text-slate-100"
                       value={editForm.date ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
                     />
                     <textarea
-                      className="w-full text-xs border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 dark:text-slate-100 resize-none"
+                      className="w-full text-xs border border-slate-600 rounded-lg px-2 py-1 bg-slate-900 text-slate-100 resize-none"
                       rows={2}
                       value={editForm.memo ?? ""}
                       onChange={e => setEditForm(f => ({ ...f, memo: e.target.value }))}
                     />
                     <div className="flex gap-1 justify-end">
-                      <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                      <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:text-slate-200">
                         <X className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={commitEdit} className="p-1 text-emerald-500 hover:text-emerald-700">
+                      <button onClick={commitEdit} className="p-1 text-emerald-400 hover:text-emerald-300">
                         <Check className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -216,16 +216,16 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
                           style={{ backgroundColor: expense.color || "#fb923c" }}
                         />
-                        <p className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">{expense.name}</p>
+                        <p className="font-semibold text-white text-xs sm:text-sm">{expense.name}</p>
                       </div>
                       <div className="flex gap-1">
-                        <button onClick={() => startEdit(expense)} className="p-1 text-slate-400 hover:text-slate-600">
+                        <button onClick={() => startEdit(expense)} className="p-1 text-slate-400 hover:text-slate-200">
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => onDelete(expense.id)} className="p-1 text-slate-400 hover:text-red-500">
+                        <button onClick={() => onDelete(expense.id)} className="p-1 text-slate-400 hover:text-rose-400">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -238,12 +238,12 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
                     {expense.date && (
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400">{expense.date}</span>
+                        <span className="text-[11px] text-slate-400">{expense.date}</span>
                         {remaining && (
                           <span className={`text-[10px] font-semibold ml-1 px-1.5 py-0.2 rounded ${
-                            remaining.past    ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500" :
-                            remaining.urgent  ? "bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400 animate-pulse"  :
-                                               "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            remaining.past    ? "bg-slate-800 text-slate-500" :
+                            remaining.urgent  ? "bg-rose-950/60 text-rose-400 border border-rose-500/30 animate-pulse"  :
+                                               "bg-slate-800 text-slate-300 border border-white/5"
                           }`}>
                             {remaining.label}
                           </span>
@@ -260,7 +260,7 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
                     )}
 
                     {expense.memo && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">{expense.memo}</p>
+                      <p className="text-[11px] text-slate-400 line-clamp-2">{expense.memo}</p>
                     )}
                   </>
                 )}

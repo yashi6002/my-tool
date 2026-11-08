@@ -104,20 +104,20 @@ export function CalendarEventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
       <div
-        className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        className="w-full max-w-lg bg-slate-900/95 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* モーダルヘッダー */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
               <span>{dateLabel}</span>
               <span className={`text-xs px-2 py-0.5 rounded-md font-semibold ${
-                dayOfWeek === "日" ? "bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400" :
-                dayOfWeek === "土" ? "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400" :
-                "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                dayOfWeek === "日" ? "bg-rose-950/60 text-rose-400 border border-rose-500/30" :
+                dayOfWeek === "土" ? "bg-blue-950/60 text-blue-400 border border-blue-500/30" :
+                "bg-slate-800 text-slate-300 border border-white/5"
               }`}>
                 {dayOfWeek}曜日
               </span>
@@ -128,7 +128,7 @@ export function CalendarEventModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -141,7 +141,7 @@ export function CalendarEventModal({
               登録されている収支 ({events.length}件)
             </h4>
             {events.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700/60">
+              <p className="text-xs text-slate-400 text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-white/10">
                 この日の収支予定はありません
               </p>
             ) : (
@@ -151,7 +151,7 @@ export function CalendarEventModal({
                   return (
                     <li
                       key={ev.id}
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex flex-col gap-2 transition-all"
+                      className="p-3 rounded-xl border border-white/10 bg-slate-800/40 flex flex-col gap-2 transition-all"
                     >
                       {isEditing ? (
                         <div className="space-y-3">
@@ -161,8 +161,8 @@ export function CalendarEventModal({
                               onClick={() => setEditType("expense")}
                               className={`flex-1 py-1 text-xs font-semibold rounded-lg border transition-all ${
                                 editType === "expense"
-                                  ? "bg-rose-50 border-rose-400 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
-                                  : "border-slate-200 dark:border-slate-700 text-slate-500"
+                                  ? "bg-rose-950/40 border-rose-500/40 text-rose-400"
+                                  : "border-white/10 text-slate-400"
                               }`}
                             >
                               出金 (ー)
@@ -172,8 +172,8 @@ export function CalendarEventModal({
                               onClick={() => setEditType("income")}
                               className={`flex-1 py-1 text-xs font-semibold rounded-lg border transition-all ${
                                 editType === "income"
-                                  ? "bg-emerald-50 border-emerald-400 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                                  : "border-slate-200 dark:border-slate-700 text-slate-500"
+                                  ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-400"
+                                  : "border-white/10 text-slate-400"
                               }`}
                             >
                               入金 (＋)
@@ -181,14 +181,14 @@ export function CalendarEventModal({
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <input
-                              className="text-xs border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                              className="text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
                               placeholder="項目名"
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
                             />
                             <input
                               type="number"
-                              className="text-xs border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                              className="text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
                               placeholder="金額"
                               value={editAmount}
                               onChange={(e) => setEditAmount(e.target.value)}
@@ -221,12 +221,12 @@ export function CalendarEventModal({
                             </div>
                           </div>
 
-                          <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
+                          <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={editIsRecurring}
                               onChange={(e) => setEditIsRecurring(e.target.checked)}
-                              className="rounded text-emerald-600 focus:ring-emerald-500"
+                              className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
                             />
                             <span>毎月{dateObj.getDate()}日に繰り返し発生</span>
                           </label>
@@ -235,14 +235,14 @@ export function CalendarEventModal({
                             <button
                               type="button"
                               onClick={() => setEditingId(null)}
-                              className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-500"
+                              className="text-xs px-2.5 py-1 rounded-lg border border-slate-700 text-slate-400 hover:text-white"
                             >
                               キャンセル
                             </button>
                             <button
                               type="button"
                               onClick={() => handleUpdate(ev.id)}
-                              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-lg font-medium flex items-center gap-1"
+                              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-lg font-medium flex items-center gap-1"
                             >
                               <Check className="w-3.5 h-3.5" /> 保存
                             </button>
@@ -256,10 +256,10 @@ export function CalendarEventModal({
                               style={{ backgroundColor: ev.color || (ev.type === "income" ? "#10b981" : "#f43f5e") }}
                             />
                             <div>
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                              <p className="text-xs font-bold text-white flex items-center gap-1.5">
                                 <span>{ev.name}</span>
                                 {ev.is_recurring && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] bg-slate-200/80 dark:bg-slate-700 px-1.5 py-0.2 rounded-full font-normal text-slate-600 dark:text-slate-300">
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.2 rounded-full font-normal">
                                     <RotateCw className="w-2.5 h-2.5" /> 毎月
                                   </span>
                                 )}
@@ -273,8 +273,8 @@ export function CalendarEventModal({
                           <div className="flex items-center gap-2.5">
                             <span className={`text-xs font-bold ${
                               ev.type === "income"
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-rose-600 dark:text-rose-400"
+                                ? "text-emerald-400"
+                                : "text-rose-400"
                             }`}>
                               {ev.type === "income" ? "+" : "-"}
                               {fmt(ev.amount)}
@@ -283,7 +283,7 @@ export function CalendarEventModal({
                               <button
                                 type="button"
                                 onClick={() => startEdit(ev)}
-                                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded"
+                                className="p-1 text-slate-400 hover:text-white rounded"
                                 title="編集"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -291,7 +291,7 @@ export function CalendarEventModal({
                               <button
                                 type="button"
                                 onClick={() => onDeleteEvent(ev.id)}
-                                className="p-1 text-slate-400 hover:text-red-500 rounded"
+                                className="p-1 text-slate-400 hover:text-rose-400 rounded"
                                 title="削除"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -308,9 +308,9 @@ export function CalendarEventModal({
           </div>
 
           {/* 新規アイテム登録フォーム */}
-          <form onSubmit={handleAdd} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 space-y-3">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5 text-emerald-500" />
+          <form onSubmit={handleAdd} className="p-4 rounded-xl border border-white/10 bg-slate-800/40 space-y-3">
+            <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5 text-emerald-400" />
               新しい収支予定を追加
             </h4>
 
@@ -321,8 +321,8 @@ export function CalendarEventModal({
                 onClick={() => setType("expense")}
                 className={`py-1.5 text-xs font-bold rounded-lg border flex items-center justify-center gap-1 transition-all ${
                   type === "expense"
-                    ? "bg-rose-50 border-rose-400 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 shadow-xs"
-                    : "border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    ? "bg-rose-950/40 border-rose-500/40 text-rose-400 shadow-xs"
+                    : "border-white/10 text-slate-400 hover:bg-slate-800"
                 }`}
               >
                 <ArrowDownRight className="w-3.5 h-3.5" />
@@ -333,8 +333,8 @@ export function CalendarEventModal({
                 onClick={() => setType("income")}
                 className={`py-1.5 text-xs font-bold rounded-lg border flex items-center justify-center gap-1 transition-all ${
                   type === "income"
-                    ? "bg-emerald-50 border-emerald-400 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 shadow-xs"
-                    : "border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-400 shadow-xs"
+                    : "border-white/10 text-slate-400 hover:bg-slate-800"
                 }`}
               >
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -345,18 +345,18 @@ export function CalendarEventModal({
             {/* 項目名 & 金額 */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] font-medium text-slate-500 block mb-1">項目名 *</label>
+                <label className="text-[11px] font-medium text-slate-400 block mb-1">項目名 *</label>
                 <input
                   type="text"
                   required
                   placeholder={type === "income" ? "例: 臨時ボーナス、副業" : "例: 食費まとめ買い、美容院"}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-500 block mb-1">金額 (円) *</label>
+                <label className="text-[11px] font-medium text-slate-400 block mb-1">金額 (円) *</label>
                 <input
                   type="number"
                   required
@@ -364,14 +364,14 @@ export function CalendarEventModal({
                   placeholder="10000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
                 />
               </div>
             </div>
 
             {/* カラー選択パレット */}
             <div>
-              <label className="text-[11px] font-medium text-slate-500 block mb-1.5">
+              <label className="text-[11px] font-medium text-slate-400 block mb-1.5">
                 表示カラー（カレンダー上のバッジ色）
               </label>
               <div className="flex items-center gap-2 flex-wrap">
@@ -394,7 +394,7 @@ export function CalendarEventModal({
                   </button>
                 ))}
                 {/* 自由カラーピッカー */}
-                <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 bg-slate-50 dark:bg-slate-900">
+                <div className="flex items-center gap-1 border border-slate-700 rounded-lg px-2 py-0.5 bg-slate-900">
                   <input
                     type="color"
                     value={color}
@@ -402,19 +402,19 @@ export function CalendarEventModal({
                     className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
                     title="自由な色を選択"
                   />
-                  <span className="text-[10px] font-mono text-slate-500">{color}</span>
+                  <span className="text-[10px] font-mono text-slate-400">{color}</span>
                 </div>
               </div>
             </div>
 
             {/* 繰り返し設定 */}
             <div className="pt-1">
-              <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isRecurring}
                   onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="rounded text-emerald-600 focus:ring-emerald-500"
+                  className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
                 />
                 <span className="font-medium">毎月この日（{dateObj.getDate()}日）に繰り返し発生させる</span>
               </label>
@@ -425,20 +425,20 @@ export function CalendarEventModal({
 
             {/* メモ */}
             <div>
-              <label className="text-[11px] font-medium text-slate-500 block mb-1">メモ（任意）</label>
+              <label className="text-[11px] font-medium text-slate-400 block mb-1">メモ（任意）</label>
               <input
                 type="text"
                 placeholder="備考やメモ"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
-                className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 dark:text-slate-100"
+                className="w-full text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
               />
             </div>
 
             <button
               type="submit"
               disabled={!name.trim() || !amount}
-              className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white py-2 rounded-xl font-bold transition-colors shadow-xs"
+              className="w-full text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white py-2 rounded-xl font-bold transition-colors shadow-sm"
             >
               この日付に追加する
             </button>
@@ -446,10 +446,10 @@ export function CalendarEventModal({
         </div>
 
         {/* モーダルフッター */}
-        <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex justify-end">
+        <div className="px-6 py-3 border-t border-white/10 bg-slate-900/60 flex justify-end">
           <button
             onClick={onClose}
-            className="text-xs px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors"
+            className="text-xs px-4 py-1.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-medium transition-colors"
           >
             閉じる
           </button>

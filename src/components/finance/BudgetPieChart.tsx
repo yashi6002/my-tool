@@ -62,24 +62,24 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
   ];
 
   return (
-    <div className="bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 md:p-6 shadow-sm backdrop-blur-xs space-y-5">
+    <div className="bg-slate-900/70 backdrop-blur-md rounded-2xl border border-white/10 p-5 md:p-6 shadow-xl space-y-5">
       {/* ── 最上部：最重要情報「自由に使っていいお金（フリー額）」のヒーロー強調表示 ── */}
       <div className={`relative overflow-hidden rounded-2xl p-5 md:p-6 text-center border-2 transition-all ${
         overBudget
-          ? "border-red-500/70 bg-gradient-to-b from-red-500/10 via-red-500/5 to-transparent shadow-red-500/5 shadow-lg"
-          : "border-emerald-500/70 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent shadow-emerald-500/5 shadow-lg"
+          ? "border-red-500/70 bg-gradient-to-b from-red-500/15 via-red-500/5 to-transparent shadow-red-500/10 shadow-xl"
+          : "border-emerald-500/70 bg-gradient-to-b from-emerald-500/15 via-emerald-500/5 to-transparent shadow-emerald-500/10 shadow-xl"
       }`}>
-        <div className="flex items-center justify-center gap-1.5 text-xs md:text-sm font-semibold tracking-wide text-slate-600 dark:text-slate-300 mb-1">
-          <Wallet className={`w-4 h-4 ${overBudget ? "text-red-500" : "text-emerald-500"}`} />
+        <div className="flex items-center justify-center gap-1.5 text-xs md:text-sm font-semibold tracking-wide text-slate-300 mb-1">
+          <Wallet className={`w-4 h-4 ${overBudget ? "text-red-400" : "text-emerald-400"}`} />
           <span>現在 自由に使っていいお金（フリー額）</span>
         </div>
         <p className={`text-3xl md:text-5xl font-black tracking-tight ${
-          overBudget ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+          overBudget ? "text-red-400" : "text-emerald-400"
         }`}>
           {overBudget ? "予算オーバー!" : fmt(freeAmount)}
         </p>
         {overBudget ? (
-          <p className="text-xs text-red-500 dark:text-red-400 font-medium mt-1">
+          <p className="text-xs text-red-400 font-medium mt-1">
             {fmt(Math.abs(salary - totalExpenses))} 超過しています
           </p>
         ) : (
@@ -118,7 +118,7 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
                   formatter={(v) => fmt(typeof v === "number" ? v : 0)}
                   contentStyle={{
                     backgroundColor: "rgba(15, 23, 42, 0.95)",
-                    borderColor: "rgba(51, 65, 85, 0.6)",
+                    borderColor: "rgba(255, 255, 255, 0.1)",
                     borderRadius: 10,
                     fontSize: 12,
                     color: "#f8fafc",
@@ -131,12 +131,12 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
 
           {/* 右側：今サイクル概要＆内訳サマリー */}
           <div className="flex-1 flex flex-col gap-3.5 w-full">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+            <div className="flex items-center justify-between pb-1 border-b border-white/10">
+              <span className="text-xs font-bold text-slate-200">
                 資金配分内訳
               </span>
               <span className="text-xs text-slate-400">
-                給与総額: <span className="font-bold text-slate-700 dark:text-slate-200">{fmt(salary)}</span>
+                給与総額: <span className="font-bold text-white">{fmt(salary)}</span>
               </span>
             </div>
 
@@ -145,11 +145,11 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
               {summaryCards.map(({ label, amount, icon: Icon, hexColor }) => (
                 <div
                   key={label}
-                  className="rounded-xl p-2.5 sm:p-3 text-center border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-800/40"
+                  className="rounded-xl p-2.5 sm:p-3 text-center border border-white/10 bg-slate-800/40"
                 >
                   <Icon className="w-4 h-4 mx-auto mb-1" style={{ color: hexColor }} />
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">{label}</p>
-                  <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                  <p className="text-[10px] text-slate-400 font-medium truncate">{label}</p>
+                  <p className="text-xs sm:text-sm font-bold text-slate-100 mt-0.5">
                     {fmt(amount)}
                   </p>
                 </div>
@@ -159,10 +159,10 @@ export function BudgetPieChart({ salary, fixedCosts, savingPlans, extraExpenses,
             {/* 全体出費比率バー */}
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] text-slate-400">
-                <span>予定支出合計: <strong className="text-slate-700 dark:text-slate-200">{fmt(totalExpenses)}</strong></span>
-                <span>支出割合: <strong className="text-slate-700 dark:text-slate-200">{salary > 0 ? `${Math.round((totalExpenses / salary) * 100)}%` : "0%"}</strong></span>
+                <span>予定支出合計: <strong className="text-slate-200">{fmt(totalExpenses)}</strong></span>
+                <span>支出割合: <strong className="text-slate-200">{salary > 0 ? `${Math.round((totalExpenses / salary) * 100)}%` : "0%"}</strong></span>
               </div>
-              <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+              <div className="h-2 w-full bg-slate-800/80 rounded-full overflow-hidden flex border border-white/5">
                 <div style={{ width: `${Math.min(100, salary > 0 ? (totalFixed / salary) * 100 : 0)}%`, backgroundColor: categoryColors.fixed }} />
                 <div style={{ width: `${Math.min(100, salary > 0 ? (totalSaving / salary) * 100 : 0)}%`, backgroundColor: categoryColors.saving }} />
                 <div style={{ width: `${Math.min(100, salary > 0 ? (totalExtra / salary) * 100 : 0)}%`, backgroundColor: categoryColors.extra }} />
