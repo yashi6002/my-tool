@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Snippet Flow - 定型文マネージャー",
-  description: "ワンタップでコピーできる定型文・スニペット管理ツール",
+  title: "資金管理ツール",
+  description: "一目でわかる金銭管理",
 };
 
 export default function RootLayout({
