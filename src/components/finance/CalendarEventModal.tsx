@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { CalendarEventItem, PRESET_COLORS, TransactionType } from "@/types/finance";
-import { X, Plus, Trash2, Edit2, Check, RotateCw, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { isFoodExpense } from "@/lib/financeUtils";
+import { X, Plus, Trash2, Edit2, Check, ArrowDownRight, ArrowUpRight, Utensils, Zap, HelpCircle } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -27,10 +28,11 @@ export function CalendarEventModal({
   onDeleteEvent,
 }: Props) {
   const [type, setType] = useState<TransactionType>("expense");
+  const [category, setCategory] = useState<"food" | "extra" | "other">("extra");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [color, setColor] = useState<string>(PRESET_COLORS[1].hex); // デフォルト: ローズ（出金）
+  const [color, setColor] = useState<string>(PRESET_COLORS[1].hex); // アンバー / 食費
   const [memo, setMemo] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export function CalendarEventModal({
   const [editAmount, setEditAmount] = useState("");
   const [editColor, setEditColor] = useState("");
   const [editType, setEditType] = useState<TransactionType>("expense");
+  const [editCategory, setEditCategory] = useState<"food" | "extra" | "other">("extra");
   const [editIsRecurring, setEditIsRecurring] = useState(false);
   const [editMemo, setEditMemo] = useState("");
 
@@ -46,14 +49,16 @@ export function CalendarEventModal({
   const dateLabel = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
   const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][dateObj.getDay()];
 
+  // タイプやカテゴリ変更時のデフォルト色調整
   useEffect(() => {
-    // タイプの切り替え時にデフォルトカラーを自動調整
     if (type === "income") {
       setColor(PRESET_COLORS[0].hex); // エメラルド
+    } else if (category === "food") {
+      setColor(PRESET_COLORS[1].hex); // アンバー（食費）
     } else {
-      setColor(PRESET_COLORS[1].hex); // ローズ
+      setColor(PRESET_COLORS[2].hex); // オレンジ（臨時出費）
     }
-  }, [type]);
+  }, [type, category]);
 
   if (!isOpen) return null;
 
@@ -61,10 +66,15 @@ export function CalendarEventModal({
     e.preventDefault();
     if (!name.trim() || !amount || Number(amount) <= 0) return;
 
+    // 食費判定
+    const isFood = category === "food" || isFoodExpense({ type, name: name.trim(), memo });
+    const finalCategory = type === "income" ? "income" : isFood ? "food" : "extra";
+
     onAddEvent({
       name: name.trim(),
       amount: Number(amount),
       type,
+      category: finalCategory,
       date: dateStr,
       color,
       is_recurring: isRecurring,
@@ -85,17 +95,23 @@ export function CalendarEventModal({
     setEditAmount(String(ev.amount));
     setEditColor(ev.color || (ev.type === "income" ? PRESET_COLORS[0].hex : PRESET_COLORS[1].hex));
     setEditType(ev.type);
+    const cat = ev.category === "food" ? "food" : ev.category === "extra" ? "extra" : "other";
+    setEditCategory(cat);
     setEditIsRecurring(!!ev.is_recurring);
     setEditMemo(ev.memo || "");
   };
 
   const handleUpdate = (id: string) => {
     if (!editName.trim() || !editAmount || Number(editAmount) <= 0) return;
+    const isFood = editCategory === "food" || isFoodExpense({ type: editType, name: editName.trim(), memo: editMemo });
+    const finalCategory = editType === "income" ? "income" : isFood ? "food" : "extra";
+
     onUpdateEvent(id, {
       name: editName.trim(),
       amount: Number(editAmount),
       color: editColor,
       type: editType,
+      category: finalCategory,
       is_recurring: editIsRecurring,
       recurring_day: editIsRecurring ? dateObj.getDate() : undefined,
       memo: editMemo.trim() || undefined,
@@ -104,31 +120,31 @@ export function CalendarEventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-lg bg-slate-900/95 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-slate-800 dark:text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* モーダルヘッダー */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-slate-850">
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>{dateLabel}</span>
               <span className={`text-xs px-2 py-0.5 rounded-md font-semibold ${
-                dayOfWeek === "日" ? "bg-rose-950/60 text-rose-400 border border-rose-500/30" :
-                dayOfWeek === "土" ? "bg-blue-950/60 text-blue-400 border border-blue-500/30" :
-                "bg-slate-800 text-slate-300 border border-white/5"
+                dayOfWeek === "日" ? "bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-500/30" :
+                dayOfWeek === "土" ? "bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500/30" :
+                "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
               }`}>
                 {dayOfWeek}曜日
               </span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              この日の入金・出金アイテムの管理 ＆ カラー設定
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              この日の収支（食費・臨時出費・入金など）を登録・管理
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,166 +153,127 @@ export function CalendarEventModal({
         <div className="overflow-y-auto p-6 space-y-6 flex-1">
           {/* 登録済みアイテム一覧 */}
           <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+            <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2.5">
               登録されている収支 ({events.length}件)
             </h4>
             {events.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-white/10">
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-white/10">
                 この日の収支予定はありません
               </p>
             ) : (
               <ul className="space-y-2">
                 {events.map((ev) => {
                   const isEditing = editingId === ev.id;
+                  const isFood = ev.category === "food" || isFoodExpense(ev);
+
                   return (
                     <li
                       key={ev.id}
-                      className="p-3 rounded-xl border border-white/10 bg-slate-800/40 flex flex-col gap-2 transition-all"
+                      className="p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-slate-800/40 flex flex-col gap-2 transition-all"
                     >
                       {isEditing ? (
                         <div className="space-y-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setEditType("expense")}
-                              className={`flex-1 py-1 text-xs font-semibold rounded-lg border transition-all ${
-                                editType === "expense"
-                                  ? "bg-rose-950/40 border-rose-500/40 text-rose-400"
-                                  : "border-white/10 text-slate-400"
-                              }`}
-                            >
-                              出金 (ー)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditType("income")}
-                              className={`flex-1 py-1 text-xs font-semibold rounded-lg border transition-all ${
-                                editType === "income"
-                                  ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-400"
-                                  : "border-white/10 text-slate-400"
-                              }`}
-                            >
-                              入金 (＋)
-                            </button>
-                          </div>
                           <div className="grid grid-cols-2 gap-2">
                             <input
-                              className="text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
-                              placeholder="項目名"
+                              type="text"
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
+                              className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900"
                             />
                             <input
                               type="number"
-                              className="text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
-                              placeholder="金額"
                               value={editAmount}
                               onChange={(e) => setEditAmount(e.target.value)}
+                              className="text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900"
                             />
                           </div>
-
-                          {/* 編集時カラー選択 */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-slate-400">色:</span>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {PRESET_COLORS.map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => setEditColor(p.hex)}
-                                  className={`w-5 h-5 rounded-full transition-transform ${
-                                    editColor === p.hex ? "scale-125 ring-2 ring-offset-1 ring-slate-400" : "opacity-80 hover:opacity-100"
-                                  }`}
-                                  style={{ backgroundColor: p.hex }}
-                                  title={p.label}
-                                />
-                              ))}
-                              <input
-                                type="color"
-                                value={editColor}
-                                onChange={(e) => setEditColor(e.target.value)}
-                                className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
-                                title="カスタムカラー"
-                              />
+                          <div className="flex items-center justify-between">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditCategory("food")}
+                                className={`text-[10px] px-2 py-0.5 rounded ${
+                                  editCategory === "food" ? "bg-amber-500 text-white font-bold" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                }`}
+                              >
+                                食費
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditCategory("extra")}
+                                className={`text-[10px] px-2 py-0.5 rounded ${
+                                  editCategory === "extra" ? "bg-orange-500 text-white font-bold" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                }`}
+                              >
+                                臨時出費
+                              </button>
                             </div>
-                          </div>
-
-                          <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editIsRecurring}
-                              onChange={(e) => setEditIsRecurring(e.target.checked)}
-                              className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
-                            />
-                            <span>毎月{dateObj.getDate()}日に繰り返し発生</span>
-                          </label>
-
-                          <div className="flex justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setEditingId(null)}
-                              className="text-xs px-2.5 py-1 rounded-lg border border-slate-700 text-slate-400 hover:text-white"
-                            >
-                              キャンセル
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdate(ev.id)}
-                              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-lg font-medium flex items-center gap-1"
-                            >
-                              <Check className="w-3.5 h-3.5" /> 保存
-                            </button>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdate(ev.id)}
+                                className="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-bold"
+                              >
+                                保存
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId(null)}
+                                className="px-2 py-1 text-slate-500 text-xs"
+                              >
+                                取消
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2">
                             <span
-                              className="w-3 h-3 rounded-full shrink-0 shadow-xs"
-                              style={{ backgroundColor: ev.color || (ev.type === "income" ? "#10b981" : "#f43f5e") }}
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: ev.color }}
                             />
                             <div>
-                              <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <span>{ev.name}</span>
-                                {ev.is_recurring && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.2 rounded-full font-normal">
-                                    <RotateCw className="w-2.5 h-2.5" /> 毎月
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                  {ev.name}
+                                </span>
+                                {isFood && (
+                                  <span className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-1.5 rounded font-medium">
+                                    食費
                                   </span>
                                 )}
-                              </p>
+                              </div>
                               {ev.memo && (
-                                <p className="text-[10px] text-slate-400 line-clamp-1">{ev.memo}</p>
+                                <p className="text-[10px] text-slate-400">{ev.memo}</p>
                               )}
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-2.5">
-                            <span className={`text-xs font-bold ${
-                              ev.type === "income"
-                                ? "text-emerald-400"
-                                : "text-rose-400"
-                            }`}>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-xs font-bold font-mono ${
+                                ev.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400"
+                              }`}
+                            >
                               {ev.type === "income" ? "+" : "-"}
                               {fmt(ev.amount)}
                             </span>
-                            <div className="flex items-center gap-0.5">
-                              <button
-                                type="button"
-                                onClick={() => startEdit(ev)}
-                                className="p-1 text-slate-400 hover:text-white rounded"
-                                title="編集"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onDeleteEvent(ev.id)}
-                                className="p-1 text-slate-400 hover:text-rose-400 rounded"
-                                title="削除"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => startEdit(ev)}
+                              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                              title="編集"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteEvent(ev.id)}
+                              className="p-1 text-slate-400 hover:text-rose-500"
+                              title="削除"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       )}
@@ -308,9 +285,9 @@ export function CalendarEventModal({
           </div>
 
           {/* 新規アイテム登録フォーム */}
-          <form onSubmit={handleAdd} className="p-4 rounded-xl border border-white/10 bg-slate-800/40 space-y-3">
-            <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
+          <form onSubmit={handleAdd} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-slate-800/40 space-y-3.5">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               新しい収支予定を追加
             </h4>
 
@@ -321,8 +298,8 @@ export function CalendarEventModal({
                 onClick={() => setType("expense")}
                 className={`py-1.5 text-xs font-bold rounded-lg border flex items-center justify-center gap-1 transition-all ${
                   type === "expense"
-                    ? "bg-rose-950/40 border-rose-500/40 text-rose-400 shadow-xs"
-                    : "border-white/10 text-slate-400 hover:bg-slate-800"
+                    ? "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 shadow-xs"
+                    : "border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 <ArrowDownRight className="w-3.5 h-3.5" />
@@ -333,46 +310,86 @@ export function CalendarEventModal({
                 onClick={() => setType("income")}
                 className={`py-1.5 text-xs font-bold rounded-lg border flex items-center justify-center gap-1 transition-all ${
                   type === "income"
-                    ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-400 shadow-xs"
-                    : "border-white/10 text-slate-400 hover:bg-slate-800"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                    : "border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 <ArrowUpRight className="w-3.5 h-3.5" />
-                入金 (＋)
+                臨時収入 (＋)
               </button>
             </div>
+
+            {/* 出金時の分類ボタン（食費 or 臨時出費） */}
+            {type === "expense" && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">分類:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategory("food");
+                    if (!name) setName("食費");
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    category === "food"
+                      ? "bg-amber-500 text-white shadow-xs"
+                      : "bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300"
+                  }`}
+                >
+                  <Utensils className="w-3 h-3" />
+                  食費トラック
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategory("extra")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    category === "extra"
+                      ? "bg-orange-500 text-white shadow-xs"
+                      : "bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300"
+                  }`}
+                >
+                  <Zap className="w-3 h-3" />
+                  臨時出費
+                </button>
+              </div>
+            )}
 
             {/* 項目名 & 金額 */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] font-medium text-slate-400 block mb-1">項目名 *</label>
+                <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">項目名 *</label>
                 <input
                   type="text"
                   required
-                  placeholder={type === "income" ? "例: 臨時ボーナス、副業" : "例: 食費まとめ買い、美容院"}
+                  placeholder={
+                    type === "income"
+                      ? "例: 臨時ボーナス、フリマ売上"
+                      : category === "food"
+                      ? "例: スーパー、夕食外食"
+                      : "例: 冠婚葬祭、家電購入"
+                  }
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
+                  className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-400 block mb-1">金額 (円) *</label>
+                <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">金額 (円) *</label>
                 <input
                   type="number"
                   required
                   min={1}
-                  placeholder="10000"
+                  placeholder="3000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
+                  className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
                 />
               </div>
             </div>
 
             {/* カラー選択パレット */}
             <div>
-              <label className="text-[11px] font-medium text-slate-400 block mb-1.5">
-                表示カラー（カレンダー上のバッジ色）
+              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1.5">
+                カレンダー上のバッジ色
               </label>
               <div className="flex items-center gap-2 flex-wrap">
                 {PRESET_COLORS.map((p) => (
@@ -380,65 +397,51 @@ export function CalendarEventModal({
                     key={p.id}
                     type="button"
                     onClick={() => setColor(p.hex)}
-                    className={`w-6 h-6 rounded-full transition-transform flex items-center justify-center ${
+                    className={`w-5 h-5 rounded-full transition-transform flex items-center justify-center ${
                       color.toLowerCase() === p.hex.toLowerCase()
-                        ? "scale-110 ring-2 ring-offset-2 ring-slate-400"
+                        ? "scale-125 ring-2 ring-offset-2 ring-slate-400"
                         : "opacity-80 hover:opacity-100"
                     }`}
                     style={{ backgroundColor: p.hex }}
                     title={p.label}
                   >
                     {color.toLowerCase() === p.hex.toLowerCase() && (
-                      <Check className="w-3.5 h-3.5 text-white" />
+                      <Check className="w-3 h-3 text-white" />
                     )}
                   </button>
                 ))}
-                {/* 自由カラーピッカー */}
-                <div className="flex items-center gap-1 border border-slate-700 rounded-lg px-2 py-0.5 bg-slate-900">
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
-                    title="自由な色を選択"
-                  />
-                  <span className="text-[10px] font-mono text-slate-400">{color}</span>
-                </div>
               </div>
             </div>
 
             {/* 繰り返し設定 */}
             <div className="pt-1">
-              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isRecurring}
                   onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700"
+                  className="rounded text-emerald-600 focus:ring-emerald-500"
                 />
                 <span className="font-medium">毎月この日（{dateObj.getDate()}日）に繰り返し発生させる</span>
               </label>
-              <p className="text-[10px] text-slate-400 ml-5 mt-0.5">
-                家賃やサブスクのように毎月決まって発生する項目にチェックしてください
-              </p>
             </div>
 
             {/* メモ */}
             <div>
-              <label className="text-[11px] font-medium text-slate-400 block mb-1">メモ（任意）</label>
+              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">メモ（任意）</label>
               <input
                 type="text"
-                placeholder="備考やメモ"
+                placeholder="店名や備考"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
-                className="w-full text-xs border border-slate-700 rounded-lg px-2.5 py-1.5 bg-slate-900 text-slate-100"
+                className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
               />
             </div>
 
             <button
               type="submit"
               disabled={!name.trim() || !amount}
-              className="w-full text-xs bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white py-2 rounded-xl font-bold transition-colors shadow-sm"
+              className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white py-2.5 rounded-xl font-bold transition-all shadow-sm"
             >
               この日付に追加する
             </button>
@@ -446,10 +449,10 @@ export function CalendarEventModal({
         </div>
 
         {/* モーダルフッター */}
-        <div className="px-6 py-3 border-t border-white/10 bg-slate-900/60 flex justify-end">
+        <div className="px-6 py-3 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-850 flex justify-end">
           <button
             onClick={onClose}
-            className="text-xs px-4 py-1.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-medium transition-colors"
+            className="text-xs px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors"
           >
             閉じる
           </button>
@@ -458,4 +461,3 @@ export function CalendarEventModal({
     </div>
   );
 }
-

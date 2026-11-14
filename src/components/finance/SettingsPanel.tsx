@@ -529,9 +529,10 @@ export function SettingsPanel({
             { key: "free" as const,   label: "自由に使えるお金（フリー額）", desc: "残高や給料の基調色" },
             { key: "fixed" as const,  label: "固定費・引き落とし予定",     desc: "家賃・光熱費・サブスク等" },
             { key: "saving" as const, label: "貯金・投資",                 desc: "NISA・先取り貯金等" },
+            { key: "food" as const,   label: "食費トラック",               desc: "スーパー、外食、日々の食費" },
             { key: "extra" as const,  label: "予定されている臨時出費",     desc: "車検・旅行・買い物等" },
           ]).map(({ key, label, desc }) => {
-            const currentColor = categoryColors[key];
+            const currentColor = categoryColors[key] || (key === "food" ? "#f59e0b" : "#10b981");
             return (
               <div
                 key={key}

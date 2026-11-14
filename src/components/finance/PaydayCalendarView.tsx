@@ -31,6 +31,8 @@ interface Props {
   calendarEvents: CalendarEventItem[];
   categoryColors?: CategoryColors;
   targetHighlightDate?: string | null;
+  cycleOffset?: number;
+  onCycleOffsetChange?: (offset: number) => void;
   onAddEvent: (event: Omit<CalendarEventItem, "id" | "created_at">) => void;
   onUpdateEvent: (id: string, updates: Partial<CalendarEventItem>) => void;
   onDeleteEvent: (id: string) => void;
@@ -57,12 +59,23 @@ export function PaydayCalendarView({
   calendarEvents,
   categoryColors = DEFAULT_CATEGORY_COLORS,
   targetHighlightDate,
+  cycleOffset: controlledOffset,
+  onCycleOffsetChange,
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
 }: Props) {
-  // サイクルオフセット (0 = 現在のサイクル, -1 = 1つ前, +1 = 1つ次)
-  const [cycleOffset, setCycleOffset] = useState<number>(0);
+  // サイクルオフセット (親コンポーネント管理または内部管理)
+  const [internalOffset, setInternalOffset] = useState<number>(0);
+  const cycleOffset = controlledOffset !== undefined ? controlledOffset : internalOffset;
+  const setCycleOffset = (newOffset: number | ((prev: number) => number)) => {
+    const val = typeof newOffset === "function" ? newOffset(cycleOffset) : newOffset;
+    if (onCycleOffsetChange) {
+      onCycleOffsetChange(val);
+    } else {
+      setInternalOffset(val);
+    }
+  };
 
   // 一時的なハイライト日付セル
   const [activeHighlightDate, setActiveHighlightDate] = useState<string | null>(null);
@@ -316,9 +329,10 @@ export function PaydayCalendarView({
 
   // サイクル表示タイトル
   const cycleTitle = useMemo(() => {
-    const s = `${cycleStart.getFullYear()}/${cycleStart.getMonth() + 1}/${cycleStart.getDate()}`;
-    const e = `${cycleEnd.getFullYear()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getDate()}`;
-    return `${s} 〜 ${e} サイクル`;
+    const s = `${cycleStart.getMonth() + 1}/${cycleStart.getDate()}`;
+    const e = `${cycleEnd.getMonth() + 1}/${cycleEnd.getDate()}`;
+    const cycleMonth = cycleEnd.getMonth() + 1;
+    return `${cycleEnd.getFullYear()}年${cycleMonth}月分 (${s} 〜 ${e})`;
   }, [cycleStart, cycleEnd]);
 
   // 選択日イベント
@@ -328,24 +342,24 @@ export function PaydayCalendarView({
     <div className="space-y-4">
       {/* ── サイクルヘッダー ＆ コントロール（Glassmorphism 両対応） ── */}
       <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-4 shadow-sm dark:shadow-xl">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           {/* 左側：サイクル切り替え */}
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-500/20">
               <CalendarIcon className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
                   {cycleTitle}
                 </h2>
                 {cycleOffset === 0 ? (
-                  <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 shadow-2xs">
-                    <Sparkles className="w-3 h-3 animate-pulse text-emerald-600 dark:text-emerald-400" /> 今期サイクル
+                  <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> 今月分
                   </span>
                 ) : (
-                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-full font-medium">
-                    {cycleOffset > 0 ? `${cycleOffset}期先` : `${Math.abs(cycleOffset)}期前`}
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-full font-medium">
+                    {cycleOffset > 0 ? `${cycleOffset}ヶ月先` : `${Math.abs(cycleOffset)}ヶ月前`}
                   </span>
                 )}
               </div>
@@ -355,35 +369,22 @@ export function PaydayCalendarView({
             </div>
           </div>
 
-          {/* 右側：前月/次月/「今日へジャンプ」ボタン ＆ コントロール */}
-          <div className="flex items-center gap-2">
+          {/* 右側：先月分 / 来月分 切り替え（今日へジャンプは削除） */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               onClick={() => setCycleOffset((v) => v - 1)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700/80 text-xs font-medium flex items-center gap-1 transition-all duration-200"
-              title="前のサイクルへ"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1 transition-all"
+              title="先月のサイクルへ"
             >
-              <ChevronLeft className="w-4 h-4" /> 前期
-            </button>
-
-            {/* 今日へジャンプボタン */}
-            <button
-              onClick={() => setCycleOffset(0)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 shadow-sm ${
-                cycleOffset !== 0
-                  ? "bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 ring-1 ring-emerald-500/20"
-                  : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/10"
-              }`}
-              title="今期サイクル・今日へジャンプ"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> 今日へジャンプ
+              <ChevronLeft className="w-4 h-4" /> 先月分
             </button>
 
             <button
               onClick={() => setCycleOffset((v) => v + 1)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700/80 text-xs font-medium flex items-center gap-1 transition-all duration-200"
-              title="次のサイクルへ"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1 transition-all"
+              title="来月のサイクルへ"
             >
-              次期 <ChevronRight className="w-4 h-4" />
+              来月分 <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ExtraExpense, PRESET_COLORS } from "@/types/finance";
+import { sortByDateAsc } from "@/lib/financeUtils";
 import { Zap, Calendar, ImageIcon, Trash2, Edit2, X, Check } from "lucide-react";
 
 interface Props {
@@ -55,6 +56,9 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
     onUpdate(editingId, editForm);
     setEditingId(null);
   };
+
+  // 予定日順（昇順）にソート
+  const sortedExpenses = useMemo(() => sortByDateAsc(expenses), [expenses]);
 
   return (
     <section className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-5 md:p-6 shadow-sm dark:shadow-xl">
@@ -160,17 +164,20 @@ export function ExtraExpenseSection({ expenses, onAdd, onDelete, onUpdate }: Pro
       )}
 
       {/* カード一覧 */}
-      {expenses.length === 0 ? (
+      {sortedExpenses.length === 0 ? (
         <p className="text-slate-400 text-sm text-center py-8 border border-dashed border-slate-200 dark:border-white/10 rounded-xl bg-slate-50/50 dark:bg-slate-900/30">
           予定されている臨時出費はありません
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-          {expenses.map(expense => {
+          {sortedExpenses.map(expense => {
             const remaining = getDaysRemaining(expense.date);
             const isEditing = editingId === expense.id;
 
-            return (
+            // 予定日順（昇順）にソート
+  const sortedExpenses = useMemo(() => sortByDateAsc(expenses), [expenses]);
+
+  return (
               <div
                 key={expense.id}
                 className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 flex flex-col gap-2 transition-all hover:border-slate-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-slate-800/60 shadow-2xs"
