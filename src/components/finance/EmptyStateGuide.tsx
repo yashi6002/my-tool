@@ -10,9 +10,6 @@ interface Props {
 export function EmptyStateGuide({ onInsertDemoData, onStartSetup }: Props) {
   return (
     <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-emerald-500/30 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-cyan-500/5 backdrop-blur-md p-6 sm:p-8 text-center my-4 transition-all">
-      {/* 背景装飾 */}
-      <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
       <div className="max-w-xl mx-auto space-y-4">
         {/* アイコン */}
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white shadow-lg ring-4 ring-emerald-500/20">
