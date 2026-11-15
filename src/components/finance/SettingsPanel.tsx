@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   PaydayCycle,
   CategoryColors,
@@ -14,11 +13,9 @@ import {
 } from "@/types/finance";
 import { DataBackupSection } from "./DataBackupSection";
 import {
-  Settings,
   Palette,
   RotateCcw,
   Database,
-  Calendar as CalendarIcon,
 } from "lucide-react";
 
 interface Props {
@@ -28,15 +25,11 @@ interface Props {
   extraExpenses?: ExtraExpense[];
   calendarEvents?: CalendarEventItem[];
   categoryColors: CategoryColors;
-  onUpdateCycle: (c: PaydayCycle) => void;
   onUpdateCategoryColors: (colors: CategoryColors) => void;
   onRestoreData?: (backup: FinanceBackupData) => void;
   onResetData?: () => void;
   onInsertDemoData?: () => void;
 }
-
-const fmt = (n: number) =>
-  n.toLocaleString("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 });
 
 export function SettingsPanel({
   cycle,
@@ -45,20 +38,11 @@ export function SettingsPanel({
   extraExpenses = [],
   calendarEvents = [],
   categoryColors,
-  onUpdateCycle,
   onUpdateCategoryColors,
   onRestoreData,
   onResetData,
   onInsertDemoData,
 }: Props) {
-  const [localCycle, setLocalCycle] = useState(cycle);
-  const [cycleEditing, setCycleEditing] = useState(false);
-
-  const handleSaveCycle = () => {
-    onUpdateCycle(localCycle);
-    setCycleEditing(false);
-  };
-
   const handleCategoryColorChange = (key: keyof CategoryColors, hex: string) => {
     onUpdateCategoryColors({
       ...categoryColors,
@@ -72,97 +56,7 @@ export function SettingsPanel({
 
   return (
     <div className="space-y-6">
-      {/* ── 1. 給料日 ＆ 給料額設定 ── */}
-      <section className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-5 shadow-sm dark:shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CalendarIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
-                給与・給料日サイクル設定
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                毎月の支給日を起点に残高を自動算出します
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setLocalCycle(cycle);
-              setCycleEditing(v => !v);
-            }}
-            className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-semibold px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 transition-all"
-          >
-            {cycleEditing ? "キャンセル" : "編集"}
-          </button>
-        </div>
-
-        {cycleEditing ? (
-          <div className="space-y-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/5 animate-in fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                  今月の給与手取り額 (円) *
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono"
-                  value={localCycle.salary}
-                  onChange={e => setLocalCycle(c => ({ ...c, salary: Number(e.target.value) }))}
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                  給料日 (毎月何日) *
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  className="w-full text-xs border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono"
-                  value={localCycle.payday}
-                  onChange={e => setLocalCycle(c => ({ ...c, payday: Number(e.target.value) }))}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end pt-1">
-              <button
-                onClick={() => setCycleEditing(false)}
-                className="text-xs px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleSaveCycle}
-                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-1.5 rounded-xl shadow-xs"
-              >
-                設定を保存
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-white/5">
-            <div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">基本給与（手取り）</span>
-              <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono">
-                {cycle.salary ? fmt(cycle.salary) : "未設定"}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">毎月の給料日</span>
-              <span className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                {cycle.payday ? `毎月 ${cycle.payday} 日` : "未設定"}
-              </span>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── 2. カラー設定（5大カテゴリ） ── */}
+      {/* ── 1. カラー設定（5大カテゴリ） ── */}
       <section className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-5 shadow-sm dark:shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -244,7 +138,7 @@ export function SettingsPanel({
         </div>
       </section>
 
-      {/* ── 3. データ管理 ＆ バックアップ ── */}
+      {/* ── 2. データ管理 ＆ バックアップ ── */}
       {onRestoreData && onResetData && onInsertDemoData && (
         <section className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-5 shadow-sm dark:shadow-xl space-y-4">
           <div className="flex items-center gap-2">

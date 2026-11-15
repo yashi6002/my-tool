@@ -24,12 +24,14 @@ export function SalaryCycleSection({
   const [localPayday, setLocalPayday] = useState(String(cycle?.payday || "25"));
 
   useEffect(() => {
+    setLocalSalary(String(cycle?.salary || ""));
+    setLocalPayday(String(cycle?.payday || "25"));
+  }, [cycle?.salary, cycle?.payday]);
+
+  useEffect(() => {
     if (isHighlighted) {
       setIsOpen(true);
-      const el = document.getElementById("salary-cycle-section");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+      setIsEditing(true);
     }
   }, [isHighlighted]);
 
@@ -46,10 +48,9 @@ export function SalaryCycleSection({
 
   return (
     <div
-      id="salary-cycle-section"
-      className={`w-full bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border transition-all shadow-sm dark:shadow-xl ${
+      className={`w-full bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border transition-all duration-300 shadow-sm dark:shadow-xl ${
         isHighlighted
-          ? "border-emerald-500 ring-4 ring-emerald-500/20"
+          ? "border-emerald-500 ring-4 ring-emerald-500/30 dark:ring-emerald-500/40 shadow-lg shadow-emerald-500/10"
           : "border-slate-200/80 dark:border-white/10"
       }`}
     >

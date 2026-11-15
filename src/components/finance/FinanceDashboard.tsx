@@ -531,8 +531,9 @@ export function FinanceDashboard() {
               <EmptyStateGuide
                 onInsertDemoData={handleInsertDemoData}
                 onStartSetup={() => {
+                  setActiveTab("dashboard");
                   setIsSalaryHighlighted(true);
-                  setTimeout(() => setIsSalaryHighlighted(false), 2500);
+                  setTimeout(() => setIsSalaryHighlighted(false), 3000);
                 }}
               />
             </div>
@@ -638,7 +639,7 @@ export function FinanceDashboard() {
           )}
 
           {/* ═════════════════════════════════════════
-              画面 ③：データ管理 / 設定
+              画面 ③：設定
              ═════════════════════════════════════════ */}
           {activeTab === "settings" && (
             <div className="max-w-4xl mx-auto">
@@ -649,7 +650,6 @@ export function FinanceDashboard() {
                 extraExpenses={extraExpenses}
                 calendarEvents={calendarEvents}
                 categoryColors={categoryColors}
-                onUpdateCycle={setCycle}
                 onUpdateCategoryColors={setCategoryColors}
                 onRestoreData={handleRestoreData}
                 onResetData={handleResetData}
