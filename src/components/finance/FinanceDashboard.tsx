@@ -437,12 +437,7 @@ export function FinanceDashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 flex flex-col md:flex-row overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-zinc-100 dark:from-slate-950 dark:via-slate-900 dark:to-zinc-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
-      {/* ── 背景装飾 ── */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/15 dark:bg-emerald-500/10 blur-[130px] pointer-events-none" />
-      <div className="absolute top-1/4 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-500/10 dark:bg-indigo-500/10 blur-[150px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/3 w-[500px] h-[500px] rounded-full bg-teal-500/10 dark:bg-teal-500/10 blur-[140px] pointer-events-none" />
-
+    <div className="fixed inset-0 flex flex-col md:flex-row overflow-hidden bg-[#edf1f5] dark:bg-[#090d16] text-slate-800 dark:text-slate-100 transition-colors duration-300">
       {/* ── 【要件3】開閉式サイドバーナビゲーション (PCスリム表示 ＆ スマホドロワー) ── */}
       <SidebarNavigation
         activeTab={activeTab}
