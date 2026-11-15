@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { FixedCost, SavingPlan, ExtraExpense, CategoryColors, DEFAULT_CATEGORY_COLORS } from "@/types/finance";
-import { TrendingDown, PiggyBank, Zap, Wallet, Utensils, ArrowUpRight, PlusCircle, Check } from "lucide-react";
+import { TrendingDown, PiggyBank, Zap, Wallet, Utensils, ArrowUpRight, PlusCircle, Check, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Props {
   salary: number;
@@ -53,6 +53,7 @@ export function BudgetPieChart({
   categoryColors = DEFAULT_CATEGORY_COLORS,
   onUpdateCarryOver,
 }: Props) {
+  const [isDetailsOpen, setIsDetailsOpen] = useState(true);
   const [isEditingCarryOver, setIsEditingCarryOver] = useState(false);
   const [carryOverInput, setCarryOverInput] = useState(String(carryOver));
 
@@ -169,10 +170,28 @@ export function BudgetPieChart({
 
       {salary === 0 ? (
         <p className="text-slate-400 text-sm text-center py-6">
-          設定から給与額を入力してください
+          給与・給料日設定から手取り額を入力してください
         </p>
       ) : (
-        <div className="flex flex-col lg:flex-row items-center gap-6 pt-1">
+        <div className="space-y-3 pt-1">
+          {/* 折りたたみトグルバー */}
+          <div
+            onClick={() => setIsDetailsOpen((v) => !v)}
+            className="flex items-center justify-between cursor-pointer select-none py-1.5 px-1 border-t border-slate-200/80 dark:border-white/10"
+          >
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              当サイクルの資金配分詳細・内訳グラフ
+            </span>
+            <div className="flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <span className="text-[11px] font-mono font-medium hidden sm:inline">
+                {isDetailsOpen ? "折りたたむ" : "展開して詳細を表示"}
+              </span>
+              {isDetailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
+          </div>
+
+          {isDetailsOpen && (
+            <div className="flex flex-col lg:flex-row items-center gap-6 pt-1 animate-in fade-in">
           {/* 円グラフ（コンパクト配置） */}
           <div className="relative w-48 h-48 sm:w-52 sm:h-52 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -250,6 +269,8 @@ export function BudgetPieChart({
               </div>
             </div>
           </div>
+        </div>
+          )}
         </div>
       )}
     </div>

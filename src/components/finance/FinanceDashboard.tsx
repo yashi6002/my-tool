@@ -23,6 +23,7 @@ import {
   isDateInCycle,
   calculateCycleRange,
   calculateAutoCarryOver,
+  getCycleOffsetBounds,
   sortByDateAsc,
 } from "@/lib/financeUtils";
 import { BudgetPieChart } from "@/components/finance/BudgetPieChart";
@@ -35,6 +36,7 @@ import { PaydayCalendarView } from "@/components/finance/PaydayCalendarView";
 import { RecentExpensesReminder } from "@/components/finance/RecentExpensesReminder";
 import { SearchDrawer } from "@/components/finance/SearchDrawer";
 import { SidebarNavigation, FinanceTab } from "@/components/finance/SidebarNavigation";
+import { SalaryCycleSection } from "@/components/finance/SalaryCycleSection";
 import { EmptyStateGuide } from "@/components/finance/EmptyStateGuide";
 import { generateRealisticDemoData } from "@/lib/demoData";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -74,15 +76,8 @@ function save<T>(key: string, val: T) {
 }
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-const DEFAULT_FIXED: FixedCost[] = [
-  { id: uid(), name: "家賃", amount: 70000, category: "rent", due_day: 27, color: "#f87171", created_at: new Date().toISOString() },
-  { id: uid(), name: "電気・ガス・水道", amount: 12000, category: "utilities", due_day: 10, color: "#f87171", created_at: new Date().toISOString() },
-  { id: uid(), name: "スマホ代", amount: 5000, category: "subscription", due_day: 15, color: "#f87171", created_at: new Date().toISOString() },
-];
-const DEFAULT_SAVINGS: SavingPlan[] = [
-  { id: uid(), name: "先取り貯金", amount: 20000, color: "#60a5fa", created_at: new Date().toISOString() },
-  { id: uid(), name: "NISA", amount: 33333, color: "#60a5fa", created_at: new Date().toISOString() },
-];
+const DEFAULT_FIXED: FixedCost[] = [];
+const DEFAULT_SAVINGS: SavingPlan[] = [];
 
 export interface AuthUser {
   id: string;
@@ -105,7 +100,7 @@ export function FinanceDashboard() {
   const [cycleOffset, setCycleOffset] = useState<number>(0);
 
   // 財務データステート
-  const [cycle, setCycle] = useState<PaydayCycle>({ salary: 250000, payday: 25, carryOver: 0 });
+  const [cycle, setCycle] = useState<PaydayCycle>({ salary: 0, payday: 25, carryOver: 0 });
   const [manualCarryOverMap, setManualCarryOverMap] = useState<Record<number, number>>({});
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [savingPlans, setSavingPlans] = useState<SavingPlan[]>([]);
@@ -114,6 +109,9 @@ export function FinanceDashboard() {
   const [categoryColors, setCategoryColors] = useState<CategoryColors>(DEFAULT_CATEGORY_COLORS);
   const [showReminder, setShowReminder] = useState<boolean>(true);
   const [mounted, setMounted] = useState(false);
+
+  // 給与セクションハイライト
+  const [isSalaryHighlighted, setIsSalaryHighlighted] = useState(false);
 
   // 検索ドロワー用ステート
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
@@ -135,10 +133,33 @@ export function FinanceDashboard() {
     }
   }, []);
 
-  // ユーザー変更時のデータロード
+  // ユーザー変更時のデータロード ＆ ゲストデータ自動引き継ぎ
   useEffect(() => {
     const userId = user?.id || null;
-    const loadedCycle = load(getUserKey(LS_KEY_CYCLE, userId), { salary: 250000, payday: 25, carryOver: 0 });
+    if (userId && typeof window !== "undefined") {
+      const userFixed = localStorage.getItem(getUserKey(LS_KEY_FIXED, userId));
+      const guestFixed = localStorage.getItem(LS_KEY_FIXED);
+      // ユーザー固有データが未登録で、ゲストデータが存在する場合は自動引き継ぎ
+      if (!userFixed && guestFixed) {
+        const keys = [
+          LS_KEY_CYCLE,
+          LS_KEY_CARRYOVER,
+          LS_KEY_FIXED,
+          LS_KEY_SAVINGS,
+          LS_KEY_EXTRAS,
+          LS_KEY_EVENTS,
+          LS_KEY_CATEGORY_COLORS,
+        ];
+        keys.forEach((k) => {
+          const val = localStorage.getItem(k);
+          if (val !== null) {
+            localStorage.setItem(getUserKey(k, userId), val);
+            localStorage.removeItem(k);
+          }
+        });
+      }
+    }
+    const loadedCycle = load(getUserKey(LS_KEY_CYCLE, userId), { salary: 0, payday: 25, carryOver: 0 });
     setCycle(loadedCycle);
     setManualCarryOverMap(load(getUserKey(LS_KEY_CARRYOVER, userId), {}));
     setFixedCosts(load(getUserKey(LS_KEY_FIXED, userId), DEFAULT_FIXED));
@@ -177,6 +198,28 @@ export function FinanceDashboard() {
   const { cycleStart, cycleEnd, label: cycleLabelText, rangeText } = useMemo(() => {
     return calculateCycleRange(cycle?.payday || 25, cycleOffset);
   }, [cycle?.payday, cycleOffset]);
+
+  // ──────────────────────────────────────────
+  // 選択可能月（サイクル）の制限範囲 [oldestOffset - 24, 24]
+  // ──────────────────────────────────────────
+  const { minOffset, maxOffset } = useMemo(() => {
+    return getCycleOffsetBounds(cycle?.payday || 25, calendarEvents, extraExpenses, fixedCosts);
+  }, [cycle?.payday, calendarEvents, extraExpenses, fixedCosts]);
+
+  const canPrevCycle = cycleOffset > minOffset;
+  const canNextCycle = cycleOffset < maxOffset;
+
+  const handlePrevCycle = useCallback(() => {
+    setCycleOffset((v) => Math.max(minOffset, v - 1));
+  }, [minOffset]);
+
+  const handleNextCycle = useCallback(() => {
+    setCycleOffset((v) => Math.min(maxOffset, v + 1));
+  }, [maxOffset]);
+
+  const handleSetCycleOffset = useCallback((offset: number) => {
+    setCycleOffset(Math.max(minOffset, Math.min(maxOffset, offset)));
+  }, [minOffset, maxOffset]);
 
   // ──────────────────────────────────────────
   // 【要件2】先月の繰越金の自動反映と「計算開始月（起点）」の制御
@@ -346,6 +389,7 @@ export function FinanceDashboard() {
     setExtraExpenses(demo.extraExpenses);
     setCalendarEvents(demo.calendarEvents);
     setCategoryColors(demo.categoryColors);
+    setActiveTab("calendar");
   };
 
   const handleRestoreData = (backup: FinanceBackupData) => {
@@ -398,8 +442,10 @@ export function FinanceDashboard() {
         onOpenSearch={() => setIsSearchOpen(true)}
         cycleMonthLabel={`${cycleLabelText} (${rangeText})`}
         cycleOffset={cycleOffset}
-        onPrevCycle={() => setCycleOffset((v) => v - 1)}
-        onNextCycle={() => setCycleOffset((v) => v + 1)}
+        onPrevCycle={handlePrevCycle}
+        onNextCycle={handleNextCycle}
+        canPrevCycle={canPrevCycle}
+        canNextCycle={canNextCycle}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         isMobileOpen={isMobileSidebarOpen}
@@ -447,16 +493,18 @@ export function FinanceDashboard() {
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200/80 dark:border-white/5">
               <button
                 type="button"
-                onClick={() => setCycleOffset((v) => v - 1)}
-                className="px-2 py-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all"
+                onClick={handlePrevCycle}
+                disabled={!canPrevCycle}
+                className="px-2 py-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 title="先月分へ"
               >
                 ◀ 先月分
               </button>
               <button
                 type="button"
-                onClick={() => setCycleOffset((v) => v + 1)}
-                className="px-2 py-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all"
+                onClick={handleNextCycle}
+                disabled={!canNextCycle}
+                className="px-2 py-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 title="来月分へ"
               >
                 来月分 ▶
@@ -482,7 +530,10 @@ export function FinanceDashboard() {
             <div className="max-w-5xl mx-auto mb-6">
               <EmptyStateGuide
                 onInsertDemoData={handleInsertDemoData}
-                onOpenSettings={() => setActiveTab("settings")}
+                onStartSetup={() => {
+                  setIsSalaryHighlighted(true);
+                  setTimeout(() => setIsSalaryHighlighted(false), 2500);
+                }}
               />
             </div>
           )}
@@ -492,6 +543,15 @@ export function FinanceDashboard() {
              ═════════════════════════════════════════ */}
           {activeTab === "dashboard" && (
             <div className="flex flex-col space-y-6 w-full max-w-5xl mx-auto">
+              {/* 0. 給与・給料日サイクル設定（ダッシュボード最上部・アコーディオン） */}
+              <section className="w-full">
+                <SalaryCycleSection
+                  cycle={cycle}
+                  onUpdateCycle={setCycle}
+                  isHighlighted={isSalaryHighlighted}
+                />
+              </section>
+
               {/* 1. 資金配分（円グラフ ＆ 繰越金自動反映つき自由費ヒーロー） */}
               <section className="w-full">
                 <BudgetPieChart
@@ -566,8 +626,10 @@ export function FinanceDashboard() {
                 categoryColors={categoryColors}
                 targetHighlightDate={targetHighlightDate}
                 cycleOffset={cycleOffset}
-                onCycleOffsetChange={setCycleOffset}
+                onCycleOffsetChange={handleSetCycleOffset}
                 onUpdateCarryOver={handleUpdateCarryOver}
+                canPrevCycle={canPrevCycle}
+                canNextCycle={canNextCycle}
                 onAddEvent={handleAddCalendarEvent}
                 onUpdateEvent={handleUpdateCalendarEvent}
                 onDeleteEvent={handleDeleteCalendarEvent}

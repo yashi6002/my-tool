@@ -200,6 +200,23 @@ export function getOldestDataOffset(
 }
 
 /**
+ * 選択可能なサイクルオフセットの最小値・最大値を算出
+ * - 最大上限: 現在月(0) + 24ヶ月 = 24
+ * - 最小下限: 利用開始月(oldestOffset) - 24ヶ月
+ */
+export function getCycleOffsetBounds(
+  payday: number = 25,
+  calendarEvents: CalendarEventItem[] = [],
+  extraExpenses: ExtraExpense[] = [],
+  fixedCosts: FixedCost[] = []
+): { minOffset: number; maxOffset: number; oldestOffset: number } {
+  const oldestOffset = getOldestDataOffset(payday, calendarEvents, extraExpenses, fixedCosts);
+  const minOffset = oldestOffset - 24;
+  const maxOffset = 24;
+  return { minOffset, maxOffset, oldestOffset };
+}
+
+/**
  * 前月の自由費余剰額（繰越金）を安全に自動計算
  * - 起点月（最古データ月）より前の過去月は 0円
  * - 前月の自由費残高がプラスならその額を繰越

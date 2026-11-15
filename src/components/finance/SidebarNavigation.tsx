@@ -32,6 +32,8 @@ interface Props {
   onPrevCycle?: () => void;
   onNextCycle?: () => void;
   cycleOffset?: number;
+  canPrevCycle?: boolean;
+  canNextCycle?: boolean;
   // 開閉ステート
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -50,6 +52,8 @@ export function SidebarNavigation({
   onPrevCycle,
   onNextCycle,
   cycleOffset = 0,
+  canPrevCycle = true,
+  canNextCycle = true,
   isCollapsed,
   onToggleCollapse,
   isMobileOpen,
@@ -59,7 +63,7 @@ export function SidebarNavigation({
     {
       id: "dashboard" as FinanceTab,
       label: "ダッシュボード / 分析",
-      desc: "自由費・円グラフ・食費トラック",
+      desc: "自由費・円グラフ・各種内訳",
       icon: LayoutDashboard,
     },
     {
@@ -70,8 +74,8 @@ export function SidebarNavigation({
     },
     {
       id: "settings" as FinanceTab,
-      label: "データ管理 / 設定",
-      desc: "給与・カラー・バックアップ",
+      label: "設定",
+      desc: "カラー・バックアップ・復元",
       icon: Settings,
     },
   ];
@@ -91,9 +95,9 @@ export function SidebarNavigation({
         />
       )}
 
-      {/* ── サイドバー本体 ── */}
+      {/* ── サイドバー本体（独立スクロール ＆ オーバースクロール遮断） ── */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 md:z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-r border-slate-200/80 dark:border-white/10 flex flex-col justify-between transition-all duration-300 ease-in-out shrink-0 ${
+        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 md:z-30 h-full md:h-screen overflow-y-auto overscroll-contain bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-r border-slate-200/80 dark:border-white/10 flex flex-col justify-between transition-all duration-300 ease-in-out shrink-0 ${
           isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
         } ${isCollapsed ? "md:w-18" : "md:w-64"} w-64`}
       >
@@ -106,12 +110,12 @@ export function SidebarNavigation({
                 <Wallet className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <h1 className="font-black text-sm tracking-tight text-slate-900 dark:text-white truncate">
-                    PayCycle
+                    丸わかり金銭管理ツール
                   </h1>
-                  <span className="text-[8.5px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold px-1.5 py-0.2 rounded">
-                    v2.1
+                  <span className="text-[8.5px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold px-1.5 py-0.2 rounded shrink-0">
+                    v1.0
                   </span>
                 </div>
                 <p className="text-[9.5px] text-slate-400 font-mono truncate">
@@ -159,7 +163,8 @@ export function SidebarNavigation({
                 <button
                   type="button"
                   onClick={onPrevCycle}
-                  className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors"
+                  disabled={!canPrevCycle}
+                  className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="先月分へ"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -170,7 +175,8 @@ export function SidebarNavigation({
                 <button
                   type="button"
                   onClick={onNextCycle}
-                  className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors"
+                  disabled={!canNextCycle}
+                  className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="来月分へ"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />

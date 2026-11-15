@@ -8,6 +8,7 @@ import {
   ExtraExpense,
   CalendarEventItem,
 } from "@/types/finance";
+import { isFoodExpense } from "@/lib/financeUtils";
 import {
   Search,
   X,
@@ -19,6 +20,7 @@ import {
   DollarSign,
   ChevronRight,
   Sparkles,
+  Utensils,
 } from "lucide-react";
 
 export interface SearchResultItem {
@@ -27,7 +29,7 @@ export interface SearchResultItem {
   amount: number;
   type: "income" | "expense";
   categoryLabel: string;
-  categoryType: "salary" | "fixed" | "saving" | "extra" | "event";
+  categoryType: "salary" | "fixed" | "saving" | "extra" | "event" | "food";
   dateStr?: string; // YYYY-MM-DD
   color?: string;
   memo?: string;
@@ -143,17 +145,18 @@ export function SearchDrawer({
       });
     });
 
-    // 5. カレンダー個別イベント
+    // 5. カレンダー個別イベント（食費とそれ以外を分類）
     calendarEvents.forEach((ev) => {
+      const isFood = isFoodExpense(ev);
       list.push({
         id: `event-${ev.id}`,
         name: ev.name,
         amount: ev.amount,
         type: ev.type,
-        categoryLabel: ev.type === "income" ? "入金・臨時収入" : "日常出費",
-        categoryType: "event",
+        categoryLabel: isFood ? "食費" : ev.type === "income" ? "入金・臨時収入" : "日常出費",
+        categoryType: isFood ? "food" : "event",
         dateStr: ev.date,
-        color: ev.color,
+        color: isFood ? (ev.color || "#f59e0b") : ev.color,
         memo: ev.memo,
       });
     });
@@ -261,10 +264,11 @@ export function SearchDrawer({
             )}
           </div>
 
-          {/* カテゴリクイックフィルター (チッ) */}
+          {/* カテゴリクイックフィルター (チップ) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
             {[
               { id: "all", label: "すべて" },
+              { id: "food", label: "食費" },
               { id: "fixed", label: "固定費" },
               { id: "extra", label: "臨時出費" },
               { id: "saving", label: "貯金" },

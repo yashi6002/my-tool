@@ -4,10 +4,10 @@ import { Sparkles, Calendar, DollarSign, ArrowRight, ShieldCheck, HelpCircle } f
 
 interface Props {
   onInsertDemoData: () => void;
-  onOpenSettings: () => void;
+  onStartSetup: () => void;
 }
 
-export function EmptyStateGuide({ onInsertDemoData, onOpenSettings }: Props) {
+export function EmptyStateGuide({ onInsertDemoData, onStartSetup }: Props) {
   return (
     <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-emerald-500/30 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-cyan-500/5 backdrop-blur-md p-6 sm:p-8 text-center my-4 transition-all">
       {/* 背景装飾 */}
@@ -80,7 +80,7 @@ export function EmptyStateGuide({ onInsertDemoData, onOpenSettings }: Props) {
           </button>
 
           <button
-            onClick={onOpenSettings}
+            onClick={onStartSetup}
             className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all"
           >
             <span>自分で設定する</span>

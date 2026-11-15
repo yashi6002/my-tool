@@ -125,7 +125,7 @@ export interface FinanceBackupData {
 /** 検索フィルターのステート */
 export interface SearchFilterState {
   keyword: string;
-  category: "all" | "fixed" | "saving" | "extra" | "event" | "income";
+  category: "all" | "food" | "fixed" | "saving" | "extra" | "event" | "income";
   type: "all" | "income" | "expense";
   dateFrom?: string;
   dateTo?: string;

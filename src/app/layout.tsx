@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "資金管理ツール",
-  description: "一目でわかる金銭管理",
+  title: "丸わかり金銭管理ツール",
+  description: "給料日サイクル型 一目でわかる金銭管理",
 };
 
 export default function RootLayout({
@@ -25,9 +25,11 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden overscroll-none antialiased bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="h-full min-h-full overflow-hidden overscroll-none flex flex-col bg-slate-100 dark:bg-slate-950">
+        {children}
+      </body>
     </html>
   );
 }

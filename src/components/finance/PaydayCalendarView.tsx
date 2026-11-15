@@ -35,6 +35,8 @@ interface Props {
   cycleOffset?: number;
   onCycleOffsetChange?: (offset: number) => void;
   onUpdateCarryOver?: (amount: number) => void;
+  canPrevCycle?: boolean;
+  canNextCycle?: boolean;
   onAddEvent: (event: Omit<CalendarEventItem, "id" | "created_at">) => void;
   onUpdateEvent: (id: string, updates: Partial<CalendarEventItem>) => void;
   onDeleteEvent: (id: string) => void;
@@ -66,6 +68,8 @@ export function PaydayCalendarView({
   cycleOffset: controlledOffset,
   onCycleOffsetChange,
   onUpdateCarryOver,
+  canPrevCycle = true,
+  canNextCycle = true,
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
@@ -387,7 +391,12 @@ export function PaydayCalendarView({
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               onClick={() => setCycleOffset((v) => v - 1)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1 transition-all"
+              disabled={!canPrevCycle}
+              className={`px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold flex items-center gap-1 transition-all ${
+                canPrevCycle
+                  ? "bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  : "bg-slate-100/50 dark:bg-slate-800/30 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+              }`}
               title="先月のサイクルへ"
             >
               <ChevronLeft className="w-4 h-4" /> 先月分
@@ -395,7 +404,12 @@ export function PaydayCalendarView({
 
             <button
               onClick={() => setCycleOffset((v) => v + 1)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1 transition-all"
+              disabled={!canNextCycle}
+              className={`px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold flex items-center gap-1 transition-all ${
+                canNextCycle
+                  ? "bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  : "bg-slate-100/50 dark:bg-slate-800/30 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+              }`}
               title="来月のサイクルへ"
             >
               来月分 <ChevronRight className="w-4 h-4" />

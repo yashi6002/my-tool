@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { ExtraExpense, PRESET_COLORS } from "@/types/finance";
 import { sortByDateAsc } from "@/lib/financeUtils";
-import { Zap, Calendar, Trash2, Edit2, X, Check, Plus } from "lucide-react";
+import { Zap, Calendar, Trash2, Edit2, X, Check, Plus, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Props {
   expenses: ExtraExpense[];
@@ -25,6 +25,7 @@ const getDaysRemaining = (dateStr?: string) => {
 };
 
 export function ExtraExpenseSection({ expenses = [], onAdd, onDelete, onUpdate }: Props) {
+  const [isOpen, setIsOpen] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -59,35 +60,54 @@ export function ExtraExpenseSection({ expenses = [], onAdd, onDelete, onUpdate }
 
   return (
     <div className="w-full bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-5 md:p-6 shadow-sm dark:shadow-xl space-y-4">
-      {/* ヘッダー */}
+      {/* ヘッダー（クリックで開閉） */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+        <div
+          onClick={() => setIsOpen((v) => !v)}
+          className="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0"
+        >
+          <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 shrink-0">
             <Zap className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white whitespace-nowrap">
                 臨時出費・予定カード
               </h3>
-              <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400 font-mono bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-full border border-orange-200 dark:border-orange-500/30">
+              <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400 font-mono bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-full border border-orange-200 dark:border-orange-500/30 whitespace-nowrap">
                 計 {fmt(totalAmount)}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               車検、旅行、冠婚葬祭など近日の特別出費を計画・把握
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>臨時出費を追加</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              setIsOpen(true);
+              setShowForm((v) => !v);
+            }}
+            className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-xl transition-all shadow-xs flex items-center gap-1 shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>臨時出費を追加</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsOpen((v) => !v)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            title={isOpen ? "折りたたむ" : "展開する"}
+          >
+            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
+
+      {isOpen && (
+        <>
 
       {/* 新規登録フォーム */}
       {showForm && (
@@ -274,6 +294,8 @@ export function ExtraExpenseSection({ expenses = [], onAdd, onDelete, onUpdate }
           })
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
