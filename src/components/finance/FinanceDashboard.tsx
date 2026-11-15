@@ -544,15 +544,6 @@ export function FinanceDashboard() {
              ═════════════════════════════════════════ */}
           {activeTab === "dashboard" && (
             <div className="flex flex-col space-y-6 w-full max-w-5xl mx-auto">
-              {/* 0. 給与・給料日サイクル設定（ダッシュボード最上部・アコーディオン） */}
-              <section className="w-full">
-                <SalaryCycleSection
-                  cycle={cycle}
-                  onUpdateCycle={setCycle}
-                  isHighlighted={isSalaryHighlighted}
-                />
-              </section>
-
               {/* 1. 資金配分（円グラフ ＆ 繰越金自動反映つき自由費ヒーロー） */}
               <section className="w-full">
                 <BudgetPieChart
@@ -607,6 +598,15 @@ export function FinanceDashboard() {
                   onAddSaving={handleAddSaving}
                   onDeleteSaving={handleDeleteSaving}
                   onUpdateSaving={handleUpdateSaving}
+                />
+              </section>
+
+              {/* 6. 給与・給料日サイクル設定（プライバシー保護のため最下部に配置） */}
+              <section className="w-full pt-1">
+                <SalaryCycleSection
+                  cycle={cycle}
+                  onUpdateCycle={setCycle}
+                  isHighlighted={isSalaryHighlighted}
                 />
               </section>
             </div>

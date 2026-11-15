@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { PaydayCycle } from "@/types/finance";
-import { Calendar as CalendarIcon, ChevronDown, ChevronUp, Edit2, Check } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  ChevronDown,
+  ChevronUp,
+  Edit2,
+  Check,
+  Eye,
+  EyeOff,
+  Lock,
+} from "lucide-react";
 
 interface Props {
   cycle: PaydayCycle;
@@ -18,8 +27,10 @@ export function SalaryCycleSection({
   onUpdateCycle,
   isHighlighted = false,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(true);
+  // プライバシー保護のため、初期状態は閉じた状態（または未設定時のみ開く）
+  const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showSalary, setShowSalary] = useState(false);
   const [localSalary, setLocalSalary] = useState(String(cycle?.salary || ""));
   const [localPayday, setLocalPayday] = useState(String(cycle?.payday || "25"));
 
@@ -28,10 +39,19 @@ export function SalaryCycleSection({
     setLocalPayday(String(cycle?.payday || "25"));
   }, [cycle?.salary, cycle?.payday]);
 
+  // ハイライト時（「自分で設定する」クリック時など）にスムーズスクロール＆自動オープン
   useEffect(() => {
     if (isHighlighted) {
       setIsOpen(true);
       setIsEditing(true);
+      setShowSalary(true);
+      const timer = setTimeout(() => {
+        const el = document.getElementById("salary-cycle-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [isHighlighted]);
 
@@ -46,8 +66,16 @@ export function SalaryCycleSection({
     setIsEditing(false);
   };
 
+  const displaySalaryText =
+    cycle?.salary === 0
+      ? "未設定"
+      : showSalary
+      ? fmt(cycle.salary)
+      : "¥••••••";
+
   return (
     <div
+      id="salary-cycle-section"
       className={`w-full bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border transition-all duration-300 shadow-sm dark:shadow-xl ${
         isHighlighted
           ? "border-emerald-500 ring-4 ring-emerald-500/30 dark:ring-emerald-500/40 shadow-lg shadow-emerald-500/10"
@@ -68,22 +96,33 @@ export function SalaryCycleSection({
               <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white whitespace-nowrap">
                 給与・給料日サイクル設定
               </h3>
-              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 font-mono bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 whitespace-nowrap">
-                手取り {cycle?.salary ? fmt(cycle.salary) : "¥0"} (毎月{cycle?.payday || 25}日)
-              </span>
+              <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/30">
+                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 font-mono whitespace-nowrap">
+                  手取り {displaySalaryText} (毎月{cycle?.payday || 25}日)
+                </span>
+                {cycle?.salary > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSalary((v) => !v);
+                    }}
+                    className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 ml-0.5"
+                    title={showSalary ? "金額を隠す（目隠し）" : "金額を表示する"}
+                  >
+                    {showSalary ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-              給与支給日を起点に残高・自由費を自動計算します
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate flex items-center gap-1">
+              <Lock className="w-3 h-3 inline text-slate-400" />
+              <span>プライベート設定：給与支給日を起点に残高・自由費を自動計算します</span>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
-          {!isOpen && (
-            <span className="text-xs font-bold font-mono text-emerald-600 dark:text-emerald-400 hidden sm:inline">
-              {cycle?.salary ? fmt(cycle.salary) : "未設定"}
-            </span>
-          )}
           <button
             type="button"
             className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
@@ -151,9 +190,21 @@ export function SalaryCycleSection({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-white/5">
               <div className="grid grid-cols-2 gap-4 flex-1">
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">基本給与（手取り支給額）</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 block font-medium">基本給与（手取り支給額）</span>
+                    {cycle?.salary > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSalary((v) => !v)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        title={showSalary ? "金額を隠す" : "金額を表示する"}
+                      >
+                        {showSalary ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
                   <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono">
-                    {cycle?.salary ? fmt(cycle.salary) : "0円 (未設定)"}
+                    {displaySalaryText}
                   </span>
                 </div>
                 <div>
