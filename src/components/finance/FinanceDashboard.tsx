@@ -192,6 +192,17 @@ export function FinanceDashboard() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // 画面全体の縦揺れ・外枠スクロールずれ（下部白抜け）を完全防止
+  useEffect(() => {
+    const resetWindowScroll = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+    window.addEventListener("scroll", resetWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", resetWindowScroll);
+  }, []);
+
   // ──────────────────────────────────────────
   // 選択サイクルの開始日・終了日の堅牢計算
   // ──────────────────────────────────────────
@@ -426,7 +437,7 @@ export function FinanceDashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-zinc-100 dark:from-slate-950 dark:via-slate-900 dark:to-zinc-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+    <div className="fixed inset-0 flex flex-col md:flex-row overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-zinc-100 dark:from-slate-950 dark:via-slate-900 dark:to-zinc-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
       {/* ── 背景装飾 ── */}
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/15 dark:bg-emerald-500/10 blur-[130px] pointer-events-none" />
       <div className="absolute top-1/4 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-500/10 dark:bg-indigo-500/10 blur-[150px] pointer-events-none" />
@@ -524,7 +535,7 @@ export function FinanceDashboard() {
         </header>
 
         {/* ── メインビュー切り替え ── */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 scroll-smooth z-10">
+        <main className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 md:p-6 scroll-smooth z-10">
           {/* 初回空状態ガイド */}
           {isEmptyState && (
             <div className="max-w-5xl mx-auto mb-6">

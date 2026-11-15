@@ -39,18 +39,25 @@ export function SalaryCycleSection({
     setLocalPayday(String(cycle?.payday || "25"));
   }, [cycle?.salary, cycle?.payday]);
 
-  // ハイライト時（「自分で設定する」クリック時など）にスムーズスクロール＆自動オープン
+  // ハイライト時（「自分で設定する」クリック時など）にメインコンテナ内のみスムーズスクロール＆自動オープン
   useEffect(() => {
     if (isHighlighted) {
       setIsOpen(true);
       setIsEditing(true);
       setShowSalary(true);
       const timer = setTimeout(() => {
-        const el = document.getElementById("salary-cycle-section");
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const mainEl = document.querySelector("main");
+        const targetEl = document.getElementById("salary-cycle-section");
+        if (mainEl && targetEl) {
+          const mainRect = mainEl.getBoundingClientRect();
+          const targetRect = targetEl.getBoundingClientRect();
+          const offsetTop = mainEl.scrollTop + (targetRect.top - mainRect.top) - 16;
+          mainEl.scrollTo({
+            top: Math.max(0, offsetTop),
+            behavior: "smooth",
+          });
         }
-      }, 150);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [isHighlighted]);
