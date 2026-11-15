@@ -10,29 +10,31 @@ import {
   CategoryColors,
   DEFAULT_CATEGORY_COLORS,
 } from "@/types/finance";
+import { calculateCycleRange, isFoodExpense, isDateInCycle } from "@/lib/financeUtils";
 import { CalendarEventModal } from "./CalendarEventModal";
+import { BudgetPieChart } from "./BudgetPieChart";
 import {
   ChevronLeft,
   ChevronRight,
-  RotateCcw,
   Plus,
   ArrowUpRight,
   ArrowDownRight,
-  Wallet,
   Calendar as CalendarIcon,
   Sparkles,
 } from "lucide-react";
 
 interface Props {
   cycle: PaydayCycle;
-  fixedCosts: FixedCost[];
-  savingPlans: SavingPlan[];
-  extraExpenses: ExtraExpense[];
-  calendarEvents: CalendarEventItem[];
+  carryOver?: number;
+  fixedCosts?: FixedCost[];
+  savingPlans?: SavingPlan[];
+  extraExpenses?: ExtraExpense[];
+  calendarEvents?: CalendarEventItem[];
   categoryColors?: CategoryColors;
   targetHighlightDate?: string | null;
   cycleOffset?: number;
   onCycleOffsetChange?: (offset: number) => void;
+  onUpdateCarryOver?: (amount: number) => void;
   onAddEvent: (event: Omit<CalendarEventItem, "id" | "created_at">) => void;
   onUpdateEvent: (id: string, updates: Partial<CalendarEventItem>) => void;
   onDeleteEvent: (id: string) => void;
@@ -45,6 +47,7 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 // 日付文字列ヘルパー YYYY-MM-DD
 function toDateStr(date: Date): string {
+  if (!date || isNaN(date.getTime())) return "";
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -53,19 +56,21 @@ function toDateStr(date: Date): string {
 
 export function PaydayCalendarView({
   cycle,
-  fixedCosts,
-  savingPlans,
-  extraExpenses,
-  calendarEvents,
+  carryOver = 0,
+  fixedCosts = [],
+  savingPlans = [],
+  extraExpenses = [],
+  calendarEvents = [],
   categoryColors = DEFAULT_CATEGORY_COLORS,
   targetHighlightDate,
   cycleOffset: controlledOffset,
   onCycleOffsetChange,
+  onUpdateCarryOver,
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
 }: Props) {
-  // サイクルオフセット (親コンポーネント管理または内部管理)
+  // サイクルオフセット (親管理または内部管理)
   const [internalOffset, setInternalOffset] = useState<number>(0);
   const cycleOffset = controlledOffset !== undefined ? controlledOffset : internalOffset;
   const setCycleOffset = (newOffset: number | ((prev: number) => number)) => {
@@ -86,34 +91,11 @@ export function PaydayCalendarView({
   // 今日の日付 (YYYY-MM-DD)
   const todayStr = useMemo(() => toDateStr(new Date()), []);
 
-  // 外部からの targetHighlightDate に反応してサイクル切り替え & スクロール & ハイライト
+  // 外部からの targetHighlightDate に反応してハイライト＆スクロール
   useEffect(() => {
     if (!targetHighlightDate) return;
-    const parts = targetHighlightDate.split("-");
-    if (parts.length !== 3) return;
-    const tYear = parseInt(parts[0], 10);
-    const tMonth = parseInt(parts[1], 10) - 1;
-    const tDay = parseInt(parts[2], 10);
-    const payday = Math.max(1, Math.min(31, cycle.payday || 25));
-
-    const today = new Date();
-    let baseYear = today.getFullYear();
-    let baseMonth = today.getMonth();
-    if (today.getDate() < payday) {
-      baseMonth -= 1;
-    }
-
-    let targetBaseYear = tYear;
-    let targetBaseMonth = tMonth;
-    if (tDay < payday) {
-      targetBaseMonth -= 1;
-    }
-
-    const calculatedOffset = (targetBaseYear - baseYear) * 12 + (targetBaseMonth - baseMonth);
-    setCycleOffset(calculatedOffset);
     setActiveHighlightDate(targetHighlightDate);
 
-    // DOM描画後にスクロール
     setTimeout(() => {
       const el = document.getElementById(`cal-cell-${targetHighlightDate}`);
       if (el) {
@@ -121,78 +103,106 @@ export function PaydayCalendarView({
       }
     }, 150);
 
-    // 4秒後にハイライト解除
     const timer = setTimeout(() => {
       setActiveHighlightDate(null);
     }, 4000);
 
     return () => clearTimeout(timer);
-  }, [targetHighlightDate, cycle.payday]);
+  }, [targetHighlightDate]);
 
   // ──────────────────────────────────────────
-  // 1. 給料日基準サイクルの開始日・終了日を計算
+  // 1. 給料日基準サイクルの安全な計算 (financeUtils を使用)
   // ──────────────────────────────────────────
-  const { cycleStart, cycleEnd, cycleDates } = useMemo(() => {
-    const today = new Date();
-    const payday = Math.max(1, Math.min(31, cycle.payday || 25));
+  const { cycleStart, cycleEnd, cycleDates, label: cycleLabelText, rangeText } = useMemo(() => {
+    return calculateCycleRange(cycle?.payday || 25, cycleOffset);
+  }, [cycle?.payday, cycleOffset]);
 
-    // 現在のサイクル基準月
-    let baseYear = today.getFullYear();
-    let baseMonth = today.getMonth();
+  // 当サイクル専用のデータフィルタリング（上部円グラフ用）
+  const cycleCalendarEvents = useMemo(() => {
+    return (calendarEvents || []).filter((ev) => {
+      if (ev?.is_recurring && ev?.recurring_day !== undefined) return true;
+      return isDateInCycle(ev?.date, cycleStart, cycleEnd);
+    });
+  }, [calendarEvents, cycleStart, cycleEnd]);
 
-    // 今日が給料日より前なら、現在のサイクルは前月給料日からスタート
-    if (today.getDate() < payday) {
-      baseMonth -= 1;
-    }
+  const cycleFoodEvents = useMemo(() => {
+    return cycleCalendarEvents.filter((ev) => isFoodExpense(ev));
+  }, [cycleCalendarEvents]);
 
-    // オフセットを加算
-    baseMonth += cycleOffset;
+  const totalFoodAmount = useMemo(() => {
+    return cycleFoodEvents.reduce((s, e) => s + (e?.amount || 0), 0);
+  }, [cycleFoodEvents]);
 
-    // サイクル開始日
-    const start = new Date(baseYear, baseMonth, payday, 0, 0, 0);
+  const cycleExtraEventsFromCalendar = useMemo(() => {
+    return cycleCalendarEvents.filter((ev) => ev?.type === "expense" && !isFoodExpense(ev));
+  }, [cycleCalendarEvents]);
 
-    // サイクル終了日（翌月 payday の前日）
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, payday - 1, 23, 59, 59);
+  const cycleExtraIncomes = useMemo(() => {
+    return cycleCalendarEvents.filter((ev) => ev?.type === "income");
+  }, [cycleCalendarEvents]);
 
-    // サイクルの全日付配列
-    const dates: Date[] = [];
-    const cur = new Date(start);
-    while (cur <= end) {
-      dates.push(new Date(cur));
-      cur.setDate(cur.getDate() + 1);
-    }
+  const totalExtraIncome = useMemo(() => {
+    return cycleExtraIncomes.reduce((s, e) => s + (e?.amount || 0), 0);
+  }, [cycleExtraIncomes]);
 
-    return {
-      cycleStart: start,
-      cycleEnd: end,
-      cycleDates: dates,
-    };
-  }, [cycle.payday, cycleOffset]);
+  const cycleExtraExpenses = useMemo(() => {
+    const list = (extraExpenses || []).filter((ee) => {
+      if (!ee?.date) return true;
+      return isDateInCycle(ee?.date, cycleStart, cycleEnd);
+    });
+    const calendarExtrasAsItems: ExtraExpense[] = cycleExtraEventsFromCalendar.map((cev) => ({
+      id: cev.id,
+      name: cev.name,
+      amount: cev.amount,
+      date: cev.date,
+      color: cev.color,
+      memo: cev.memo,
+      created_at: cev.created_at,
+    }));
+    return [...list, ...calendarExtrasAsItems];
+  }, [extraExpenses, cycleExtraEventsFromCalendar, cycleStart, cycleEnd]);
 
   // ──────────────────────────────────────────
   // 2. 日付ごとのアイテム集計 ＆ 累積予測残高の計算
   // ──────────────────────────────────────────
   const { dayItemsMap, dailyBalances, cycleSummary } = useMemo(() => {
-    const totalSavings = savingPlans.reduce((s, p) => s + p.amount, 0);
+    const totalSavings = (savingPlans || []).reduce((s, p) => s + (p?.amount || 0), 0);
     const map = new Map<string, CalendarEventItem[]>();
 
     // サイクル内の各日付に対して初期化
-    cycleDates.forEach((d) => {
+    (cycleDates || []).forEach((d) => {
       const dStr = toDateStr(d);
+      if (!dStr) return;
       const items: CalendarEventItem[] = [];
 
-      // A. 給料日（サイクル開始日）の給料自動計上
-      if (dStr === toDateStr(cycleStart) && cycle.salary > 0) {
-        items.push({
-          id: `auto-salary-${dStr}`,
-          name: "給与支給",
-          amount: cycle.salary,
-          type: "income",
-          date: dStr,
-          color: categoryColors.free, // 自由額・収入カラー
-          source: "custom",
-          created_at: dStr,
-        });
+      // A. 給料日（サイクル開始日）の給料自動計上 ＆ 繰越金加算
+      if (dStr === toDateStr(cycleStart)) {
+        if ((cycle?.salary || 0) > 0) {
+          items.push({
+            id: `auto-salary-${dStr}`,
+            name: "給与支給",
+            amount: cycle.salary,
+            type: "income",
+            date: dStr,
+            color: categoryColors?.free || "#34d399",
+            source: "custom",
+            created_at: dStr,
+          });
+        }
+
+        // 繰越金があれば表示
+        if ((carryOver || 0) > 0) {
+          items.push({
+            id: `auto-carryover-${dStr}`,
+            name: "先月繰越金",
+            amount: carryOver,
+            type: "income",
+            date: dStr,
+            color: "#10b981",
+            source: "custom",
+            created_at: dStr,
+          });
+        }
 
         // 先取り貯金があれば同時に差し引き計上
         if (totalSavings > 0) {
@@ -202,7 +212,7 @@ export function PaydayCalendarView({
             amount: totalSavings,
             type: "expense",
             date: dStr,
-            color: categoryColors.saving, // 貯金カラー
+            color: categoryColors?.saving || "#60a5fa",
             source: "custom",
             created_at: dStr,
           });
@@ -210,15 +220,15 @@ export function PaydayCalendarView({
       }
 
       // B. 固定費の自動反映 (due_day が合致するもの)
-      fixedCosts.forEach((fc) => {
-        if (fc.due_day === d.getDate()) {
+      (fixedCosts || []).forEach((fc) => {
+        if (fc?.due_day === d.getDate()) {
           items.push({
             id: `auto-fixed-${fc.id}-${dStr}`,
             name: fc.name,
             amount: fc.amount,
             type: "expense",
             date: dStr,
-            color: fc.color || categoryColors.fixed, // 固定費個別カラー または 固定費カテゴリカラー
+            color: fc.color || categoryColors?.fixed || "#f87171",
             is_recurring: true,
             recurring_day: fc.due_day,
             memo: fc.memo,
@@ -230,15 +240,15 @@ export function PaydayCalendarView({
       });
 
       // C. 臨時出費の自動反映 (date が合致するもの)
-      extraExpenses.forEach((ee) => {
-        if (ee.date === dStr) {
+      (extraExpenses || []).forEach((ee) => {
+        if (ee?.date === dStr) {
           items.push({
             id: `auto-extra-${ee.id}`,
             name: ee.name,
             amount: ee.amount,
             type: "expense",
             date: dStr,
-            color: ee.color || categoryColors.extra, // 臨時出費カラー または カテゴリカラー
+            color: ee.color || categoryColors?.extra || "#fb923c",
             memo: ee.memo,
             source: "extra",
             source_id: ee.id,
@@ -248,13 +258,12 @@ export function PaydayCalendarView({
       });
 
       // D. カレンダー独自イベント（単発 or 毎月繰り返し）
-      calendarEvents.forEach((ev) => {
+      (calendarEvents || []).forEach((ev) => {
         const isMatch =
-          ev.date === dStr ||
-          (ev.is_recurring && ev.recurring_day === d.getDate());
+          ev?.date === dStr ||
+          (ev?.is_recurring && ev?.recurring_day === d.getDate());
 
         if (isMatch) {
-          // 重複チェック
           if (!items.some((it) => it.id === ev.id)) {
             items.push(ev);
           }
@@ -270,17 +279,18 @@ export function PaydayCalendarView({
     let totalIncome = 0;
     let totalExpense = 0;
 
-    cycleDates.forEach((d) => {
+    (cycleDates || []).forEach((d) => {
       const dStr = toDateStr(d);
+      if (!dStr) return;
       const items = map.get(dStr) || [];
 
       items.forEach((item) => {
         if (item.type === "income") {
-          runningBalance += item.amount;
-          totalIncome += item.amount;
+          runningBalance += (item?.amount || 0);
+          totalIncome += (item?.amount || 0);
         } else {
-          runningBalance -= item.amount;
-          totalExpense += item.amount;
+          runningBalance -= (item?.amount || 0);
+          totalExpense += (item?.amount || 0);
         }
       });
 
@@ -296,27 +306,24 @@ export function PaydayCalendarView({
         finalBalance: runningBalance,
       },
     };
-  }, [cycleDates, cycleStart, cycle.salary, savingPlans, fixedCosts, extraExpenses, calendarEvents]);
+  }, [cycleDates, cycleStart, cycle?.salary, carryOver, savingPlans, fixedCosts, extraExpenses, calendarEvents, categoryColors]);
 
   // ──────────────────────────────────────────
   // 3. カレンダーグリッド配置用のスロット作成
   // ──────────────────────────────────────────
   const gridSlots = useMemo(() => {
-    if (cycleDates.length === 0) return [];
-    const firstDayOfWeek = cycleDates[0].getDay(); // 0 (日) 〜 6 (土)
+    if (!cycleDates || cycleDates.length === 0) return [];
+    const firstDayOfWeek = cycleDates[0].getDay();
 
-    // 先頭のパディングセル
     const slots: Array<{ date: Date | null; dateStr: string }> = [];
     for (let i = 0; i < firstDayOfWeek; i++) {
       slots.push({ date: null, dateStr: `pad-start-${i}` });
     }
 
-    // サイクルの実日付セル
     cycleDates.forEach((d) => {
       slots.push({ date: d, dateStr: toDateStr(d) });
     });
 
-    // 末尾のパディングセル (7の倍数にする)
     const remaining = 7 - (slots.length % 7);
     if (remaining < 7) {
       for (let i = 0; i < remaining; i++) {
@@ -327,21 +334,28 @@ export function PaydayCalendarView({
     return slots;
   }, [cycleDates]);
 
-  // サイクル表示タイトル
-  const cycleTitle = useMemo(() => {
-    const s = `${cycleStart.getMonth() + 1}/${cycleStart.getDate()}`;
-    const e = `${cycleEnd.getMonth() + 1}/${cycleEnd.getDate()}`;
-    const cycleMonth = cycleEnd.getMonth() + 1;
-    return `${cycleEnd.getFullYear()}年${cycleMonth}月分 (${s} 〜 ${e})`;
-  }, [cycleStart, cycleEnd]);
-
   // 選択日イベント
   const modalEvents = selectedDateStr ? dayItemsMap.get(selectedDateStr) || [] : [];
 
   return (
-    <div className="space-y-4">
-      {/* ── サイクルヘッダー ＆ コントロール（Glassmorphism 両対応） ── */}
-      <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-4 shadow-sm dark:shadow-xl">
+    <div className="space-y-6">
+      {/* ── 【要件6】カレンダー画面最上部への資金配分円グラフ表示 ── */}
+      <section>
+        <BudgetPieChart
+          salary={cycle?.salary || 0}
+          carryOver={carryOver}
+          fixedCosts={fixedCosts}
+          savingPlans={savingPlans}
+          extraExpenses={cycleExtraExpenses}
+          foodAmount={totalFoodAmount}
+          extraIncome={totalExtraIncome}
+          categoryColors={categoryColors}
+          onUpdateCarryOver={onUpdateCarryOver}
+        />
+      </section>
+
+      {/* ── サイクルヘッダー ＆ コントロール ── */}
+      <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-4 shadow-sm dark:shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           {/* 左側：サイクル切り替え */}
           <div className="flex items-center gap-2.5">
@@ -351,7 +365,7 @@ export function PaydayCalendarView({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                  {cycleTitle}
+                  {cycleLabelText} ({rangeText})
                 </h2>
                 {cycleOffset === 0 ? (
                   <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
@@ -364,12 +378,12 @@ export function PaydayCalendarView({
                 )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                給料日（毎月{cycle.payday}日）を起点とした自動残高シミュレーション
+                給料日（毎月{cycle?.payday || 25}日）を起点とした自動残高シミュレーション
               </p>
             </div>
           </div>
 
-          {/* 右側：先月分 / 来月分 切り替え（今日へジャンプは削除） */}
+          {/* 右側：先月分 / 来月分 切り替え */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               onClick={() => setCycleOffset((v) => v - 1)}
@@ -390,216 +404,203 @@ export function PaydayCalendarView({
         </div>
 
         {/* サイクルサマリーバー */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-200/80 dark:border-white/10">
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-200/80 dark:border-white/10">
           <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-2.5 text-center border border-emerald-200 dark:border-emerald-500/20">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-0.5">
               <ArrowUpRight className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
               サイクル総入金
             </p>
-            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+            <p className="text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-400 font-mono">
               +{fmt(cycleSummary.totalIncome)}
             </p>
           </div>
           <div className="bg-rose-50 dark:bg-rose-950/30 rounded-xl p-2.5 text-center border border-rose-200 dark:border-rose-500/20">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-0.5">
               <ArrowDownRight className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-              サイクル総出費
+              サイクル総出金
             </p>
-            <p className="text-sm font-bold text-rose-700 dark:text-rose-400">
+            <p className="text-xs sm:text-sm font-bold text-rose-700 dark:text-rose-400 font-mono">
               -{fmt(cycleSummary.totalExpense)}
             </p>
           </div>
-          <div className={`rounded-xl p-2.5 text-center border ${
-            cycleSummary.finalBalance >= 0
-              ? "bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-white/10"
-              : "bg-rose-50 dark:bg-red-950/40 border-rose-200 dark:border-red-500/30"
-          }`}>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-0.5">
-              <Wallet className="w-3 h-3 text-slate-400" />
-              期末予測残高
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-2.5 text-center border border-slate-200 dark:border-white/10">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+              サイクル予測最終残高
             </p>
-            <p className={`text-sm font-black ${
-              cycleSummary.finalBalance >= 0
-                ? "text-slate-900 dark:text-white"
-                : "text-rose-600 dark:text-red-400 font-bold"
-            }`}>
+            <p
+              className={`text-xs sm:text-sm font-bold font-mono ${
+                cycleSummary.finalBalance >= 0
+                  ? "text-slate-800 dark:text-slate-100"
+                  : "text-rose-600 dark:text-rose-400"
+              }`}
+            >
               {fmt(cycleSummary.finalBalance)}
             </p>
           </div>
         </div>
       </div>
 
-      {/* ── カレンダーグリッド（Glassmorphism 両対応） ── */}
-      <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-4 shadow-sm dark:shadow-xl overflow-hidden">
-        {/* 曜日ヘッダー */}
-        <div className="grid grid-cols-7 gap-1.5 mb-2">
-          {WEEKDAYS.map((w, idx) => (
-            <div
-              key={w}
-              className={`text-center py-1 text-xs font-bold rounded-lg ${
-                idx === 0
-                  ? "text-rose-600 dark:text-red-400 bg-rose-50 dark:bg-red-950/30 border border-rose-200 dark:border-red-500/20"
-                  : idx === 6
-                  ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-500/20"
-                  : "text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-slate-200/60 dark:border-white/5"
-              }`}
-            >
-              {w}
-            </div>
-          ))}
-        </div>
+      {/* ── カレンダー本体（スマホでの横スクロール保証 ＆ セルサイズ最適化） ── */}
+      <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 p-3 sm:p-4 shadow-sm dark:shadow-xl overflow-x-auto">
+        <div className="min-w-[580px] sm:min-w-0">
+          {/* 曜日ヘッダー */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-2 text-center text-xs font-bold">
+            {WEEKDAYS.map((wd, i) => (
+              <div
+                key={wd}
+                className={`py-1.5 rounded-lg ${
+                  i === 0
+                    ? "text-rose-500 dark:text-red-400 bg-rose-50/50 dark:bg-rose-950/20"
+                    : i === 6
+                    ? "text-blue-500 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
+                    : "text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-850/50"
+                }`}
+              >
+                {wd}
+              </div>
+            ))}
+          </div>
 
-        {/* 日付セルグリッド */}
-        <div className="grid grid-cols-7 gap-1.5">
-          {gridSlots.map((slot, idx) => {
-            // パディングセル（空マス）
-            if (!slot.date) {
+          {/* 日付セルグリッド */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+            {gridSlots.map((slot) => {
+              const d = slot.date;
+              if (!d) {
+                return (
+                  <div
+                    key={slot.dateStr}
+                    className="min-h-[90px] sm:min-h-[105px] p-1.5 rounded-xl border border-slate-100/60 dark:border-white/5 bg-slate-50/30 dark:bg-slate-900/10 opacity-30 pointer-events-none"
+                  />
+                );
+              }
+
+              const dStr = slot.dateStr;
+              const items = dayItemsMap.get(dStr) || [];
+              const balance = dailyBalances.get(dStr) ?? 0;
+
+              const isToday = dStr === todayStr;
+              const isPast = dStr < todayStr;
+              const isPayday = d.getDate() === (cycle?.payday || 25);
+              const dayOfWeek = d.getDay();
+              const isHighlighted = activeHighlightDate === dStr;
+
+              let cellClasses = "min-h-[90px] sm:min-h-[105px] p-1.5 sm:p-2 rounded-xl transition-all duration-200 flex flex-col justify-between cursor-pointer group relative ";
+              if (isHighlighted) {
+                cellClasses += "bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-500 shadow-xl ring-4 ring-amber-400 scale-[1.02] z-10 animate-bounce ";
+              } else if (isToday) {
+                cellClasses += "bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 ";
+              } else if (isPast) {
+                cellClasses += "bg-slate-100/60 dark:bg-slate-900/30 text-slate-400 dark:text-slate-500 border border-slate-200/50 dark:border-white/5 opacity-60 hover:opacity-100 hover:border-slate-400 transition-opacity ";
+              } else {
+                cellClasses += "bg-white/90 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-white/10 hover:border-emerald-500/50 hover:shadow-md ";
+              }
+
               return (
                 <div
-                  key={`pad-${idx}`}
-                  className="min-h-[100px] rounded-xl border border-dashed border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/20"
-                />
-              );
-            }
-
-            const d = slot.date;
-            const dStr = slot.dateStr;
-            const items = dayItemsMap.get(dStr) || [];
-            const balance = dailyBalances.get(dStr) ?? 0;
-
-            const isToday = dStr === todayStr;
-            const isPast = dStr < todayStr;
-            const isFuture = dStr > todayStr;
-            const isPayday = d.getDate() === cycle.payday;
-            const dayOfWeek = d.getDay();
-
-            const isHighlighted = activeHighlightDate === dStr;
-
-            // スタイリングの決定
-            let cellClasses = "min-h-[105px] p-1.5 sm:p-2 rounded-xl transition-all duration-200 flex flex-col justify-between cursor-pointer group relative ";
-            if (isHighlighted) {
-              // 検索やジャンプからの注目ハイライト（アニメーション点滅）
-              cellClasses += "bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-500 shadow-xl ring-4 ring-amber-400 scale-[1.03] z-10 animate-bounce ";
-            } else if (isToday) {
-              // 今日: 鮮やかなエメラルドグリーンの薄いハイライト背景と強調枠線
-              cellClasses += "bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 ";
-            } else if (isPast) {
-              // 過去: トーンを大幅に落とした半透明グレー
-              cellClasses += "bg-slate-100/60 dark:bg-slate-900/30 text-slate-400 dark:text-slate-500 border border-slate-200/50 dark:border-white/5 opacity-60 hover:opacity-100 hover:border-slate-400 transition-opacity ";
-            } else {
-              // 未来: スッキリとした通常背景
-              cellClasses += "bg-white/90 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-white/10 hover:border-emerald-500/50 hover:shadow-md ";
-            }
-
-            return (
-              <div
-                key={dStr}
-                id={`cal-cell-${dStr}`}
-                onClick={() => setSelectedDateStr(dStr)}
-                className={cellClasses}
-              >
-                {/* セル上部：日付番号 ＆ 給料日/今日バッジ */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span
-                      className={`text-xs font-bold w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center ${
-                        isToday
-                          ? "bg-emerald-600 text-white shadow-md font-black ring-1 ring-emerald-300"
-                          : isPayday
-                          ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-extrabold"
-                          : isPast
-                          ? "text-slate-400 dark:text-slate-500 font-normal"
-                          : dayOfWeek === 0
-                          ? "text-rose-500 dark:text-red-400 font-bold"
-                          : dayOfWeek === 6
-                          ? "text-blue-500 dark:text-blue-400 font-bold"
-                          : "text-slate-700 dark:text-slate-300 font-medium"
-                      }`}
-                    >
-                      {d.getDate()}
-                    </span>
-
-                    <div className="flex items-center gap-1">
-                      {isToday && (
-                        <span className="text-[8.5px] bg-emerald-600 text-white px-1.5 py-0.2 rounded-full font-bold shadow-xs">
-                          今日
-                        </span>
-                      )}
-                      {isPayday && !isToday && (
-                        <span className="text-[8.5px] bg-amber-500 text-white dark:text-slate-950 px-1.5 py-0.2 rounded-full font-bold">
-                          給料日
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedDateStr(dStr);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-slate-400 hover:text-emerald-500"
-                        title="収支を追加"
+                  key={dStr}
+                  id={`cal-cell-${dStr}`}
+                  onClick={() => setSelectedDateStr(dStr)}
+                  className={cellClasses}
+                >
+                  {/* セル上部：日付番号 ＆ 給料日/今日バッジ */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className={`text-xs font-bold w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center ${
+                          isToday
+                            ? "bg-emerald-600 text-white shadow-md font-black ring-1 ring-emerald-300"
+                            : isPayday
+                            ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-extrabold"
+                            : isPast
+                            ? "text-slate-400 dark:text-slate-500 font-normal"
+                            : dayOfWeek === 0
+                            ? "text-rose-500 dark:text-red-400 font-bold"
+                            : dayOfWeek === 6
+                            ? "text-blue-500 dark:text-blue-400 font-bold"
+                            : "text-slate-700 dark:text-slate-300 font-medium"
+                        }`}
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                        {d.getDate()}
+                      </span>
+
+                      <div className="flex items-center gap-1">
+                        {isToday && (
+                          <span className="text-[8px] bg-emerald-600 text-white px-1 py-0.2 rounded-full font-bold shadow-xs">
+                            今日
+                          </span>
+                        )}
+                        {isPayday && !isToday && (
+                          <span className="text-[8px] bg-amber-500 text-white dark:text-slate-950 px-1 py-0.2 rounded-full font-bold">
+                            給料日
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDateStr(dStr);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-slate-400 hover:text-emerald-500"
+                          title="収支を追加"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 収支アイテムリスト（コンパクト化） */}
+                    <div className="space-y-0.5 sm:space-y-1">
+                      {items.slice(0, 3).map((item) => (
+                        <div
+                          key={item.id}
+                          className="text-[9px] leading-tight px-1.5 py-0.5 rounded flex items-center justify-between truncate"
+                          style={{
+                            backgroundColor: `${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}20`,
+                            color: item.color || (item.type === "income" ? "#10b981" : "#f43f5e"),
+                            borderLeft: `2px solid ${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}`,
+                          }}
+                          title={`${item.name} (${item.type === "income" ? "+" : "-"}${fmt(item.amount)})`}
+                        >
+                          <span className="truncate mr-1 font-medium">{item.name}</span>
+                          <span className="font-bold shrink-0">
+                            {item.type === "income" ? "+" : "-"}
+                            {item.amount >= 10000
+                              ? `${(item.amount / 10000).toFixed(item.amount % 10000 === 0 ? 0 : 1)}万`
+                              : fmt(item.amount)}
+                          </span>
+                        </div>
+                      ))}
+                      {items.length > 3 && (
+                        <p className="text-[8px] text-slate-400 text-right font-medium">
+                          +{items.length - 3}件
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  {/* 収支アイテムリスト（コンパクト化） */}
-                  <div className="space-y-0.5 sm:space-y-1">
-                    {items.slice(0, 3).map((item) => (
-                      <div
-                        key={item.id}
-                        className="text-[9px] leading-tight px-1.5 py-0.5 rounded flex items-center justify-between truncate"
-                        style={{
-                          backgroundColor: `${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}20`,
-                          color: item.color || (item.type === "income" ? "#10b981" : "#f43f5e"),
-                          borderLeft: `2px solid ${item.color || (item.type === "income" ? "#10b981" : "#f43f5e")}`,
-                        }}
-                        title={`${item.name} (${item.type === "income" ? "+" : "-"}${fmt(item.amount)})`}
-                      >
-                        <span className="truncate mr-1 font-medium">{item.name}</span>
-                        <span className="font-bold shrink-0">
-                          {item.type === "income" ? "+" : "-"}
-                          {item.amount >= 10000
-                            ? `${(item.amount / 10000).toFixed(item.amount % 10000 === 0 ? 0 : 1)}万`
-                            : fmt(item.amount)}
-                        </span>
-                      </div>
-                    ))}
-                    {items.length > 3 && (
-                      <p className="text-[8.5px] text-slate-500 dark:text-slate-400 text-right font-medium">
-                        他 +{items.length - 3}件
-                      </p>
-                    )}
+                  {/* セル下部：この日時点の予測累積残高 */}
+                  <div className="pt-1 mt-1 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between">
+                    <span className="text-[8px] text-slate-400">残高</span>
+                    <span
+                      className={`text-[9.5px] font-mono font-bold truncate ${
+                        balance >= 0
+                          ? "text-slate-700 dark:text-slate-300"
+                          : "text-rose-500 dark:text-rose-400"
+                      }`}
+                    >
+                      {balance >= 100000
+                        ? `${(balance / 10000).toFixed(1)}万`
+                        : fmt(balance)}
+                    </span>
                   </div>
                 </div>
-
-                {/* セル下部：その日時点の予測残高（コンパクト化） */}
-                <div className="mt-1 pt-0.5 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[9px]">
-                  <span className="text-slate-400 dark:text-slate-500">残高</span>
-                  <span
-                    className={`font-bold tracking-tight ${
-                      balance < 0
-                        ? "text-rose-600 dark:text-red-400 font-extrabold"
-                        : isToday
-                        ? "text-emerald-700 dark:text-emerald-400 font-extrabold"
-                        : isPast
-                        ? "text-slate-400 dark:text-slate-500"
-                        : "text-slate-700 dark:text-slate-300"
-                    }`}
-                  >
-                    {balance >= 100000 || balance <= -100000
-                      ? `${(balance / 10000).toFixed(1)}万`
-                      : fmt(balance)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* ── 日付詳細 ＆ イベント追加モーダル ── */}
+      {/* ── 日付詳細 ＆ 収支追加モーダル ── */}
       {selectedDateStr && (
         <CalendarEventModal
           isOpen={true}
@@ -614,4 +615,3 @@ export function PaydayCalendarView({
     </div>
   );
 }
-

@@ -18,10 +18,18 @@ import {
   LS_KEY_CATEGORY_COLORS,
   LS_KEY_CARRYOVER,
 } from "@/types/finance";
-import { isFoodExpense, isDateInCycle, calculateCycleRange, sortByDateAsc } from "@/lib/financeUtils";
+import {
+  isFoodExpense,
+  isDateInCycle,
+  calculateCycleRange,
+  calculateAutoCarryOver,
+  sortByDateAsc,
+} from "@/lib/financeUtils";
 import { BudgetPieChart } from "@/components/finance/BudgetPieChart";
 import { FoodExpenseTracker } from "@/components/finance/FoodExpenseTracker";
 import { ExtraExpenseSection } from "@/components/finance/ExtraExpenseSection";
+import { FixedCostSection } from "@/components/finance/FixedCostSection";
+import { SavingPlanSection } from "@/components/finance/SavingPlanSection";
 import { SettingsPanel } from "@/components/finance/SettingsPanel";
 import { PaydayCalendarView } from "@/components/finance/PaydayCalendarView";
 import { RecentExpensesReminder } from "@/components/finance/RecentExpensesReminder";
@@ -33,16 +41,13 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
+  Menu,
   Wallet,
   Search,
   Bell,
   Sparkles,
-  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  User as UserIcon,
-  LogOut,
-  LogIn,
 } from "lucide-react";
 
 // ──────────────────────────────────────────
@@ -63,7 +68,9 @@ function load<T>(key: string, fallback: T): T {
 }
 function save<T>(key: string, val: T) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(val));
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch {}
 }
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -82,9 +89,6 @@ export interface AuthUser {
   email: string;
 }
 
-// ──────────────────────────────────────────
-// メインコンポーネント: PayCycle (3画面サイドバー切替)
-// ──────────────────────────────────────────
 export function FinanceDashboard() {
   // ユーザー認証ステート
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -93,12 +97,16 @@ export function FinanceDashboard() {
   // 画面タブナビゲーションステート (①dashboard, ②calendar, ③settings)
   const [activeTab, setActiveTab] = useState<FinanceTab>("dashboard");
 
+  // サイドバーの開閉ステート（PC用折りたたみ ＆ スマホ用ドロワー）
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   // 選択中の給料日サイクルオフセット (0 = 今月分, -1 = 先月分, +1 = 来月分)
   const [cycleOffset, setCycleOffset] = useState<number>(0);
 
   // 財務データステート
   const [cycle, setCycle] = useState<PaydayCycle>({ salary: 250000, payday: 25, carryOver: 0 });
-  const [carryOver, setCarryOver] = useState<number>(0);
+  const [manualCarryOverMap, setManualCarryOverMap] = useState<Record<number, number>>({});
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [savingPlans, setSavingPlans] = useState<SavingPlan[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
@@ -132,7 +140,7 @@ export function FinanceDashboard() {
     const userId = user?.id || null;
     const loadedCycle = load(getUserKey(LS_KEY_CYCLE, userId), { salary: 250000, payday: 25, carryOver: 0 });
     setCycle(loadedCycle);
-    setCarryOver(load(getUserKey(LS_KEY_CARRYOVER, userId), loadedCycle.carryOver || 0));
+    setManualCarryOverMap(load(getUserKey(LS_KEY_CARRYOVER, userId), {}));
     setFixedCosts(load(getUserKey(LS_KEY_FIXED, userId), DEFAULT_FIXED));
     setSavingPlans(load(getUserKey(LS_KEY_SAVINGS, userId), DEFAULT_SAVINGS));
     setExtraExpenses(load(getUserKey(LS_KEY_EXTRAS, userId), []));
@@ -144,7 +152,7 @@ export function FinanceDashboard() {
   // 各 state 変化時の永続化保存
   const currentUserId = user?.id || null;
   useEffect(() => { if (mounted) save(getUserKey(LS_KEY_CYCLE, currentUserId), cycle); }, [cycle, mounted, currentUserId]);
-  useEffect(() => { if (mounted) save(getUserKey(LS_KEY_CARRYOVER, currentUserId), carryOver); }, [carryOver, mounted, currentUserId]);
+  useEffect(() => { if (mounted) save(getUserKey(LS_KEY_CARRYOVER, currentUserId), manualCarryOverMap); }, [manualCarryOverMap, mounted, currentUserId]);
   useEffect(() => { if (mounted) save(getUserKey(LS_KEY_FIXED, currentUserId), fixedCosts); }, [fixedCosts, mounted, currentUserId]);
   useEffect(() => { if (mounted) save(getUserKey(LS_KEY_SAVINGS, currentUserId), savingPlans); }, [savingPlans, mounted, currentUserId]);
   useEffect(() => { if (mounted) save(getUserKey(LS_KEY_EXTRAS, currentUserId), extraExpenses); }, [extraExpenses, mounted, currentUserId]);
@@ -164,56 +172,80 @@ export function FinanceDashboard() {
   }, []);
 
   // ──────────────────────────────────────────
-  // 選択サイクルの開始日・終了日の厳密計算
+  // 選択サイクルの開始日・終了日の堅牢計算
   // ──────────────────────────────────────────
   const { cycleStart, cycleEnd, label: cycleLabelText, rangeText } = useMemo(() => {
-    return calculateCycleRange(cycle.payday, cycleOffset);
-  }, [cycle.payday, cycleOffset]);
+    return calculateCycleRange(cycle?.payday || 25, cycleOffset);
+  }, [cycle?.payday, cycleOffset]);
+
+  // ──────────────────────────────────────────
+  // 【要件2】先月の繰越金の自動反映と「計算開始月（起点）」の制御
+  // ──────────────────────────────────────────
+  const currentCarryOver = useMemo(() => {
+    // ユーザーが手動入力した値があれば優先
+    if (manualCarryOverMap[cycleOffset] !== undefined) {
+      return manualCarryOverMap[cycleOffset];
+    }
+    // 未設定の場合は、起点月を考慮して前月余剰金を自動計算
+    return calculateAutoCarryOver(
+      cycleOffset,
+      cycle?.payday || 25,
+      cycle?.salary || 0,
+      fixedCosts,
+      savingPlans,
+      extraExpenses,
+      calendarEvents
+    );
+  }, [cycleOffset, manualCarryOverMap, cycle?.payday, cycle?.salary, fixedCosts, savingPlans, extraExpenses, calendarEvents]);
+
+  // 繰越金の手動更新ハンドラー
+  const handleUpdateCarryOver = useCallback((amount: number) => {
+    setManualCarryOverMap((prev) => ({
+      ...prev,
+      [cycleOffset]: amount,
+    }));
+  }, [cycleOffset]);
 
   // ──────────────────────────────────────────
   // 選択月（サイクル）への完全連動フィルタリング ＆ 自動分類
   // ──────────────────────────────────────────
-  // 1. カレンダーイベントの当月フィルタリング
   const cycleCalendarEvents = useMemo(() => {
-    return calendarEvents.filter((ev) => {
-      if (ev.is_recurring && ev.recurring_day !== undefined) {
-        return true; // 毎月繰り返しは全サイクル対象
-      }
-      return isDateInCycle(ev.date, cycleStart, cycleEnd);
+    return (calendarEvents || []).filter((ev) => {
+      if (ev?.is_recurring && ev?.recurring_day !== undefined) return true;
+      return isDateInCycle(ev?.date, cycleStart, cycleEnd);
     });
   }, [calendarEvents, cycleStart, cycleEnd]);
 
-  // 2. カレンダーから直接入力された「食費」の自動分類と集計
+  // 食費の自動分類
   const cycleFoodEvents = useMemo(() => {
     return cycleCalendarEvents.filter((ev) => isFoodExpense(ev));
   }, [cycleCalendarEvents]);
 
   const totalFoodAmount = useMemo(() => {
-    return cycleFoodEvents.reduce((s, e) => s + e.amount, 0);
+    return cycleFoodEvents.reduce((s, e) => s + (e?.amount || 0), 0);
   }, [cycleFoodEvents]);
 
-  // 3. カレンダーから直接入力された「臨時出費（食費以外）」の集計
+  // カレンダー直接入力の臨時出費（食費以外）
   const cycleExtraEventsFromCalendar = useMemo(() => {
-    return cycleCalendarEvents.filter((ev) => ev.type === "expense" && !isFoodExpense(ev));
+    return cycleCalendarEvents.filter((ev) => ev?.type === "expense" && !isFoodExpense(ev));
   }, [cycleCalendarEvents]);
 
-  // 4. カレンダーから直接入力された「臨時収入」の集計
+  // カレンダー直接入力の臨時収入
   const cycleExtraIncomes = useMemo(() => {
-    return cycleCalendarEvents.filter((ev) => ev.type === "income");
+    return cycleCalendarEvents.filter((ev) => ev?.type === "income");
   }, [cycleCalendarEvents]);
 
   const totalExtraIncome = useMemo(() => {
-    return cycleExtraIncomes.reduce((s, e) => s + e.amount, 0);
+    return cycleExtraIncomes.reduce((s, e) => s + (e?.amount || 0), 0);
   }, [cycleExtraIncomes]);
 
-  // 5. 臨時出費カードのうち、当サイクル内に該当するもの（他月の予定は厳密に除外）
+  // 当サイクル内の臨時出費カード
   const cycleExtraExpenses = useMemo(() => {
-    const list = extraExpenses.filter((ee) => {
-      if (!ee.date) return true; // 日付未定の予定は当期計画として含める
-      return isDateInCycle(ee.date, cycleStart, cycleEnd);
+    const list = (extraExpenses || []).filter((ee) => {
+      if (!ee?.date) return true;
+      return isDateInCycle(ee?.date, cycleStart, cycleEnd);
     });
 
-    // カレンダー直接入力の臨時出費も合算してリスト表示可能にする
     const calendarExtrasAsItems: ExtraExpense[] = cycleExtraEventsFromCalendar.map((cev) => ({
       id: cev.id,
       name: cev.name,
@@ -245,54 +277,53 @@ export function FinanceDashboard() {
 
   // ── 固定費 CRUD ──
   const handleAddFixed = useCallback((data: Omit<FixedCost, "id" | "created_at">) => {
-    setFixedCosts(prev => [...prev, { ...data, id: uid(), created_at: new Date().toISOString() }]);
+    setFixedCosts(prev => [...(prev || []), { ...data, id: uid(), created_at: new Date().toISOString() }]);
   }, []);
   const handleDeleteFixed = useCallback((id: string) => {
-    setFixedCosts(prev => prev.filter(f => f.id !== id));
+    setFixedCosts(prev => (prev || []).filter(f => f.id !== id));
   }, []);
   const handleUpdateFixed = useCallback((id: string, data: Partial<FixedCost>) => {
-    setFixedCosts(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
+    setFixedCosts(prev => (prev || []).map(f => f.id === id ? { ...f, ...data } : f));
   }, []);
 
   // ── 貯金 CRUD ──
   const handleAddSaving = useCallback((data: Omit<SavingPlan, "id" | "created_at">) => {
-    setSavingPlans(prev => [...prev, { ...data, id: uid(), created_at: new Date().toISOString() }]);
+    setSavingPlans(prev => [...(prev || []), { ...data, id: uid(), created_at: new Date().toISOString() }]);
   }, []);
   const handleDeleteSaving = useCallback((id: string) => {
-    setSavingPlans(prev => prev.filter(s => s.id !== id));
+    setSavingPlans(prev => (prev || []).filter(s => s.id !== id));
   }, []);
   const handleUpdateSaving = useCallback((id: string, data: Partial<SavingPlan>) => {
-    setSavingPlans(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
+    setSavingPlans(prev => (prev || []).map(s => s.id === id ? { ...s, ...data } : s));
   }, []);
 
   // ── 臨時出費 CRUD ──
   const handleAddExtra = useCallback((data: Omit<ExtraExpense, "id" | "created_at">) => {
-    setExtraExpenses(prev => [...prev, { ...data, id: uid(), created_at: new Date().toISOString() }]);
+    setExtraExpenses(prev => [...(prev || []), { ...data, id: uid(), created_at: new Date().toISOString() }]);
   }, []);
   const handleDeleteExtra = useCallback((id: string) => {
-    setExtraExpenses(prev => prev.filter(e => e.id !== id));
-    // カレンダーイベント側にもあれば削除
-    setCalendarEvents(prev => prev.filter(ev => ev.id !== id));
+    setExtraExpenses(prev => (prev || []).filter(e => e.id !== id));
+    setCalendarEvents(prev => (prev || []).filter(ev => ev.id !== id));
   }, []);
   const handleUpdateExtra = useCallback((id: string, data: Partial<ExtraExpense>) => {
-    setExtraExpenses(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
+    setExtraExpenses(prev => (prev || []).map(e => e.id === id ? { ...e, ...data } : e));
   }, []);
 
   // ── カレンダーイベント CRUD ──
   const handleAddCalendarEvent = useCallback((event: Omit<CalendarEventItem, "id" | "created_at">) => {
-    setCalendarEvents(prev => [...prev, { ...event, id: uid(), created_at: new Date().toISOString() }]);
+    setCalendarEvents(prev => [...(prev || []), { ...event, id: uid(), created_at: new Date().toISOString() }]);
   }, []);
   const handleUpdateCalendarEvent = useCallback((id: string, updates: Partial<CalendarEventItem>) => {
-    setCalendarEvents(prev => prev.map(ev => ev.id === id ? { ...ev, ...updates } : ev));
+    setCalendarEvents(prev => (prev || []).map(ev => ev.id === id ? { ...ev, ...updates } : ev));
   }, []);
   const handleDeleteCalendarEvent = useCallback((id: string) => {
-    setCalendarEvents(prev => prev.filter(ev => ev.id !== id));
+    setCalendarEvents(prev => (prev || []).filter(ev => ev.id !== id));
   }, []);
 
-  // ── クイック食費追加ハンドラー ──
+  // ── クイック食費追加 ──
   const handleAddFoodExpense = useCallback((name: string, amount: number, dateStr: string) => {
     setCalendarEvents(prev => [
-      ...prev,
+      ...(prev || []),
       {
         id: uid(),
         name,
@@ -300,11 +331,11 @@ export function FinanceDashboard() {
         type: "expense",
         category: "food",
         date: dateStr,
-        color: categoryColors.food || "#f59e0b",
+        color: categoryColors?.food || "#f59e0b",
         created_at: new Date().toISOString(),
       },
     ]);
-  }, [categoryColors.food]);
+  }, [categoryColors?.food]);
 
   // ── データ管理・復元・リセット・デモデータ ──
   const handleInsertDemoData = () => {
@@ -318,25 +349,24 @@ export function FinanceDashboard() {
   };
 
   const handleRestoreData = (backup: FinanceBackupData) => {
-    if (backup.cycle) setCycle(backup.cycle);
-    if (backup.carryOver !== undefined) setCarryOver(backup.carryOver);
-    if (Array.isArray(backup.fixedCosts)) setFixedCosts(backup.fixedCosts);
-    if (Array.isArray(backup.savingPlans)) setSavingPlans(backup.savingPlans);
-    if (Array.isArray(backup.extraExpenses)) setExtraExpenses(backup.extraExpenses);
-    if (Array.isArray(backup.calendarEvents)) setCalendarEvents(backup.calendarEvents);
-    if (backup.categoryColors) setCategoryColors(backup.categoryColors);
+    if (backup?.cycle) setCycle(backup.cycle);
+    if (Array.isArray(backup?.fixedCosts)) setFixedCosts(backup.fixedCosts);
+    if (Array.isArray(backup?.savingPlans)) setSavingPlans(backup.savingPlans);
+    if (Array.isArray(backup?.extraExpenses)) setExtraExpenses(backup.extraExpenses);
+    if (Array.isArray(backup?.calendarEvents)) setCalendarEvents(backup.calendarEvents);
+    if (backup?.categoryColors) setCategoryColors(backup.categoryColors);
   };
 
   const handleResetData = () => {
     setCycle({ salary: 0, payday: 25, carryOver: 0 });
-    setCarryOver(0);
+    setManualCarryOverMap({});
     setFixedCosts([]);
     setSavingPlans([]);
     setExtraExpenses([]);
     setCalendarEvents([]);
   };
 
-  // 検索結果クリック時の日付ジャンプ
+  // 検索結果からのジャンプ
   const handleSelectDateFromSearch = (dateStr: string) => {
     setTargetHighlightDate(dateStr);
     setActiveTab("calendar");
@@ -344,21 +374,21 @@ export function FinanceDashboard() {
 
   // 空状態かどうか
   const isEmptyState =
-    fixedCosts.length === 0 &&
-    extraExpenses.length === 0 &&
-    calendarEvents.length === 0 &&
-    cycle.salary === 0;
+    (!fixedCosts || fixedCosts.length === 0) &&
+    (!extraExpenses || extraExpenses.length === 0) &&
+    (!calendarEvents || calendarEvents.length === 0) &&
+    (cycle?.salary || 0) === 0;
 
   if (!mounted) return null;
 
   return (
     <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-zinc-100 dark:from-slate-950 dark:via-slate-900 dark:to-zinc-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
-      {/* ── 背景の美しいスポットライト・メッシュ装飾 ── */}
+      {/* ── 背景装飾 ── */}
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/15 dark:bg-emerald-500/10 blur-[130px] pointer-events-none" />
       <div className="absolute top-1/4 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-500/10 dark:bg-indigo-500/10 blur-[150px] pointer-events-none" />
       <div className="absolute -bottom-32 left-1/3 w-[500px] h-[500px] rounded-full bg-teal-500/10 dark:bg-teal-500/10 blur-[140px] pointer-events-none" />
 
-      {/* ── 左サイドバーナビゲーション (3画面切替) ── */}
+      {/* ── 【要件3】開閉式サイドバーナビゲーション (PCスリム表示 ＆ スマホドロワー) ── */}
       <SidebarNavigation
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -370,132 +400,165 @@ export function FinanceDashboard() {
         cycleOffset={cycleOffset}
         onPrevCycle={() => setCycleOffset((v) => v - 1)}
         onNextCycle={() => setCycleOffset((v) => v + 1)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* ── メインコンテンツエリア ── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 z-10">
         {/*
-          最優先要件1:
-          カレンダー表示時は最上部の全体ヘッダー（アカウント/検索枠等）を非表示にしてカレンダー表示領域を広く確保する
+          ── 【要件5】上部ヘッダー（スクロール時にも透けない固定ヘッダー） ──
+          PC・スマホ両方で常設。スマホ時はメニュー開閉ボタンを配置。
         */}
-        {activeTab !== "calendar" && (
-          <header className="h-14 border-b border-slate-200/80 dark:border-white/10 px-4 sm:px-6 flex items-center justify-between bg-white/80 dark:bg-slate-900/70 backdrop-blur-md shrink-0">
-            {/* 左側：現在の表示月情報 */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>{cycleLabelText}</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-normal font-mono">
-                  ({rangeText})
-                </span>
+        <header className="sticky top-0 h-14 border-b border-slate-200/80 dark:border-white/10 px-4 sm:px-6 flex items-center justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shrink-0 z-20 shadow-2xs">
+          {/* 左側：スマホ用ハンバーガーボタン ＆ 表示月情報 */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="md:hidden p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="メニューを開く"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span>{cycleLabelText}</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-normal font-mono hidden sm:inline">
+                ({rangeText})
               </span>
-              {cycleOffset === 0 ? (
-                <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> 今月分
-                </span>
-              ) : (
-                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-full font-medium">
-                  {cycleOffset > 0 ? `${cycleOffset}ヶ月先` : `${Math.abs(cycleOffset)}ヶ月前`}
-                </span>
-              )}
-            </div>
+            </span>
 
-            {/* 右側：クイックコントロール */}
-            <div className="flex items-center gap-2">
-              {/* 先月/来月切り替え */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200/80 dark:border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setCycleOffset((v) => v - 1)}
-                  className="px-2 py-1 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all"
-                  title="先月分へ"
-                >
-                  ◀ 先月分
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCycleOffset((v) => v + 1)}
-                  className="px-2 py-1 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all"
-                  title="来月分へ"
-                >
-                  来月分 ▶
-                </button>
-              </div>
+            {cycleOffset === 0 ? (
+              <span className="text-[9.5px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> 今月
+              </span>
+            ) : (
+              <span className="text-[9.5px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-full font-medium">
+                {cycleOffset > 0 ? `${cycleOffset}ヶ月先` : `${Math.abs(cycleOffset)}ヶ月前`}
+              </span>
+            )}
+          </div>
 
-              {/* リマインダー手動再表示ボタン */}
+          {/* 右側：先月分 / 来月分切り替え ＆ リマインダー ＆ 検索 */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200/80 dark:border-white/5">
               <button
-                onClick={() => setShowReminder(true)}
-                className="p-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors relative"
-                title="直近の支出リマインダーを表示"
+                type="button"
+                onClick={() => setCycleOffset((v) => v - 1)}
+                className="px-2 py-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all"
+                title="先月分へ"
               >
-                <Bell className="w-4 h-4" />
-                <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1 right-1" />
+                ◀ 先月分
+              </button>
+              <button
+                type="button"
+                onClick={() => setCycleOffset((v) => v + 1)}
+                className="px-2 py-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded hover:bg-white dark:hover:bg-slate-700 font-medium transition-all"
+                title="来月分へ"
+              >
+                来月分 ▶
               </button>
             </div>
-          </header>
-        )}
 
-        {/* ── メインビュー切り替え（①ダッシュボード/分析, ②カレンダー/収支管理, ③データ管理/設定） ── */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth z-10">
+            {/* リマインダー手動再表示ボタン */}
+            <button
+              onClick={() => setShowReminder(true)}
+              className="p-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors relative"
+              title="直近の支出リマインダーを表示"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1 right-1" />
+            </button>
+          </div>
+        </header>
+
+        {/* ── メインビュー切り替え ── */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 scroll-smooth z-10">
           {/* 初回空状態ガイド */}
           {isEmptyState && (
-            <EmptyStateGuide
-              onInsertDemoData={handleInsertDemoData}
-              onOpenSettings={() => setActiveTab("settings")}
-            />
+            <div className="max-w-5xl mx-auto mb-6">
+              <EmptyStateGuide
+                onInsertDemoData={handleInsertDemoData}
+                onOpenSettings={() => setActiveTab("settings")}
+              />
+            </div>
           )}
 
           {/* ═════════════════════════════════════════
-              画面 ①：ダッシュボード / 分析
+              画面 ①：ダッシュボード / 分析（【要件8】すべて1列ワイド表示）
              ═════════════════════════════════════════ */}
           {activeTab === "dashboard" && (
-            <div className="space-y-6 max-w-7xl mx-auto">
-              {/* 1. 資金配分（円グラフ ＆ 繰越金入力つき自由費ヒーロー） */}
-              <section>
+            <div className="flex flex-col space-y-6 w-full max-w-5xl mx-auto">
+              {/* 1. 資金配分（円グラフ ＆ 繰越金自動反映つき自由費ヒーロー） */}
+              <section className="w-full">
                 <BudgetPieChart
-                  salary={cycle.salary}
-                  carryOver={carryOver}
+                  salary={cycle?.salary || 0}
+                  carryOver={currentCarryOver}
                   fixedCosts={fixedCosts}
                   savingPlans={savingPlans}
                   extraExpenses={cycleExtraExpenses}
                   foodAmount={totalFoodAmount}
                   extraIncome={totalExtraIncome}
                   categoryColors={categoryColors}
-                  onUpdateCarryOver={setCarryOver}
+                  onUpdateCarryOver={handleUpdateCarryOver}
                 />
               </section>
 
-              {/* 2. 食費トラック ＆ 臨時出費・予定リスト（予定日昇順ソート） */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 独立した食費トラック欄 */}
-                <section>
-                  <FoodExpenseTracker
-                    cycleStart={cycleStart}
-                    cycleEnd={cycleEnd}
-                    calendarEvents={cycleFoodEvents}
-                    onAddFoodExpense={handleAddFoodExpense}
-                  />
-                </section>
+              {/* 2. 食費トラック（1列ワイド） */}
+              <section className="w-full">
+                <FoodExpenseTracker
+                  cycleStart={cycleStart}
+                  cycleEnd={cycleEnd}
+                  calendarEvents={cycleFoodEvents}
+                  onAddFoodExpense={handleAddFoodExpense}
+                />
+              </section>
 
-                {/* 当サイクルに連動した臨時出費カード一覧（予定日順ソート） */}
-                <section>
-                  <ExtraExpenseSection
-                    expenses={cycleExtraExpenses}
-                    onAdd={handleAddExtra}
-                    onDelete={handleDeleteExtra}
-                    onUpdate={handleUpdateExtra}
-                  />
-                </section>
-              </div>
+              {/* 3. 当サイクルの臨時出費（1列ワイド） */}
+              <section className="w-full">
+                <ExtraExpenseSection
+                  expenses={cycleExtraExpenses}
+                  onAdd={handleAddExtra}
+                  onDelete={handleDeleteExtra}
+                  onUpdate={handleUpdateExtra}
+                />
+              </section>
+
+              {/* 4. 【要件7】固定費・引き落とし予定（ダッシュボード画面へ移設・1列ワイド） */}
+              <section className="w-full">
+                <FixedCostSection
+                  fixedCosts={fixedCosts}
+                  categoryColor={categoryColors?.fixed}
+                  onAddFixed={handleAddFixed}
+                  onDeleteFixed={handleDeleteFixed}
+                  onUpdateFixed={handleUpdateFixed}
+                />
+              </section>
+
+              {/* 5. 【要件7】貯金・投資計画（ダッシュボード画面へ移設・1列ワイド） */}
+              <section className="w-full">
+                <SavingPlanSection
+                  savingPlans={savingPlans}
+                  categoryColor={categoryColors?.saving}
+                  onAddSaving={handleAddSaving}
+                  onDeleteSaving={handleDeleteSaving}
+                  onUpdateSaving={handleUpdateSaving}
+                />
+              </section>
             </div>
           )}
 
           {/* ═════════════════════════════════════════
-              画面 ②：カレンダー / 収支管理（ヘッダー非表示で広大に表示）
+              画面 ②：カレンダー / 収支管理（【要件6】上部に円グラフ表示付き）
              ═════════════════════════════════════════ */}
           {activeTab === "calendar" && (
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-5xl mx-auto space-y-6">
               <PaydayCalendarView
                 cycle={cycle}
+                carryOver={currentCarryOver}
                 fixedCosts={fixedCosts}
                 savingPlans={savingPlans}
                 extraExpenses={extraExpenses}
@@ -504,6 +567,7 @@ export function FinanceDashboard() {
                 targetHighlightDate={targetHighlightDate}
                 cycleOffset={cycleOffset}
                 onCycleOffsetChange={setCycleOffset}
+                onUpdateCarryOver={handleUpdateCarryOver}
                 onAddEvent={handleAddCalendarEvent}
                 onUpdateEvent={handleUpdateCalendarEvent}
                 onDeleteEvent={handleDeleteCalendarEvent}
@@ -525,12 +589,6 @@ export function FinanceDashboard() {
                 categoryColors={categoryColors}
                 onUpdateCycle={setCycle}
                 onUpdateCategoryColors={setCategoryColors}
-                onAddFixed={handleAddFixed}
-                onDeleteFixed={handleDeleteFixed}
-                onUpdateFixed={handleUpdateFixed}
-                onAddSaving={handleAddSaving}
-                onDeleteSaving={handleDeleteSaving}
-                onUpdateSaving={handleUpdateSaving}
                 onRestoreData={handleRestoreData}
                 onResetData={handleResetData}
                 onInsertDemoData={handleInsertDemoData}
