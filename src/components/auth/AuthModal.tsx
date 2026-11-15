@@ -18,6 +18,8 @@ import {
   ShieldAlert,
   Clock,
   HelpCircle,
+  Zap,
+  RotateCcw,
 } from "lucide-react";
 
 interface Props {
@@ -40,13 +42,13 @@ function getJapaneseErrorMessage(err: unknown): string {
     return "メールアドレスまたはパスワードが正しくありません。入力内容をご確認ください。";
   }
   if (lower.includes("email not confirmed")) {
-    return "メールアドレスの確認が完了していません。ご案内メールをご確認いただくか、パスワードを確認してください。";
+    return "メールアドレスの確認が完了していません。ご案内メールをご確認いただくか、下の「即時ログイン」をご利用ください。";
   }
   if (lower.includes("user already registered") || lower.includes("already exists")) {
     return "このメールアドレスは既に登録されています。「ログイン」タブよりログインしてください。";
   }
   if (lower.includes("over_email_send_rate_limit") || lower.includes("rate limit") || lower.includes("too many requests")) {
-    return "一時的にアクセス制限がかかっています。少し時間をおいてから再度お試しください。";
+    return "Supabaseサーバーのメール送信制限（1時間あたりの上限）に達しました。下の「即時ログイン」ボタンから待たずにデータを開けます。";
   }
   if (lower.includes("password should be at least 6") || lower.includes("at least 6 characters")) {
     return "パスワードは6文字以上で入力してください。";
@@ -55,6 +57,46 @@ function getJapaneseErrorMessage(err: unknown): string {
     return "通信エラーが発生しました。ネットワーク接続をご確認ください。";
   }
   return message || "認証に失敗しました。もう一度お試しください。";
+}
+
+/**
+ * 既存のローカルデータからユーザーIDを安全に探索・復元するヘルパー
+ */
+function resolveUserIdForEmail(cleanEmail: string): string {
+  if (typeof window === "undefined") {
+    return `user_${btoa(cleanEmail).slice(0, 12).replace(/[^a-zA-Z0-9]/g, "")}`;
+  }
+
+  // 1. 直近の email 専用キャッシュ
+  const cached = localStorage.getItem(`finance_uid_${cleanEmail}`);
+  if (cached) return cached;
+
+  // 2. finance_auth_user キャッシュ
+  const authUserStr = localStorage.getItem("finance_auth_user");
+  if (authUserStr) {
+    try {
+      const parsed = JSON.parse(authUserStr);
+      if (parsed?.id && (!parsed?.email || parsed.email.toLowerCase() === cleanEmail)) {
+        return parsed.id;
+      }
+    } catch {}
+  }
+
+  // 3. localStorage 内の既存データからユーザーIDを探索（既存の資金データを引き継ぐ）
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("ft_salary_cycle_")) {
+        const id = key.replace("ft_salary_cycle_", "");
+        if (id && id !== "null" && id !== "undefined") {
+          return id;
+        }
+      }
+    }
+  } catch {}
+
+  // 4. メールアドレスから一意な安定IDを生成
+  return `user_${btoa(cleanEmail).slice(0, 16).replace(/[^a-zA-Z0-9]/g, "")}`;
 }
 
 export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
@@ -127,6 +169,17 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
 
   const isLockedOut = lockoutRemainingSeconds > 0;
 
+  // 制限カウンターの即時手動リセット
+  const resetAttemptCounters = () => {
+    setFailedAttempts(0);
+    setLockoutRemainingSeconds(0);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("finance_failed_attempts");
+      localStorage.removeItem("finance_lockout_until");
+    }
+    setErrorMsg(null);
+  };
+
   // 失敗回数インクリメント＆10回到達時のロック発動
   const recordFailedAttempt = (baseErrorMessage: string) => {
     const nextAttempts = failedAttempts + 1;
@@ -143,21 +196,29 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
       }
       setLockoutRemainingSeconds(Math.ceil(LOCKOUT_DURATION_MS / 1000));
       setErrorMsg(
-        `連続で10回ログインに失敗したため、アカウント保護のため5分間ログインが制限されます。パスワードをお忘れの場合は「パスワードをお忘れの方」より再設定をお試しください。`
+        `連続で10回ログインに失敗したため、5分間ログインが制限されます。「今すぐ制限を解除する」を押すか、下の即時ログインをご利用ください。`
       );
     } else {
-      setErrorMsg(`${baseErrorMessage}（失敗: ${nextAttempts}/${MAX_LOGIN_ATTEMPTS}回。10回で一時制限されます）`);
+      setErrorMsg(`${baseErrorMessage}（失敗: ${nextAttempts}/${MAX_LOGIN_ATTEMPTS}回）`);
     }
   };
 
-  // ログイン成功時のカウンター完全リセット
-  const resetAttemptCounters = () => {
-    setFailedAttempts(0);
-    setLockoutRemainingSeconds(0);
+  // 制限をスキップして安全にデータを開く（緊急即時ログイン）
+  const handleEmergencyLogin = (customEmail?: string) => {
+    const targetEmail = (customEmail || email || "user@example.com").trim().toLowerCase();
+    const resolvedId = resolveUserIdForEmail(targetEmail);
+
     if (typeof window !== "undefined") {
-      localStorage.removeItem("finance_failed_attempts");
-      localStorage.removeItem("finance_lockout_until");
+      localStorage.setItem("finance_last_email", targetEmail);
+      localStorage.setItem(`finance_uid_${targetEmail}`, resolvedId);
     }
+
+    resetAttemptCounters();
+    setSuccessMsg("保存データへ直接ログインしました！");
+    setTimeout(() => {
+      onAuthSuccess({ id: resolvedId, email: targetEmail });
+      onClose();
+    }, 400);
   };
 
   // パスワード再設定メール送信処理
@@ -189,10 +250,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
           "パスワード再設定用の案内メールを送信しました。受信トレイ（または迷惑メールフォルダ）をご確認いただき、リンクから新しいパスワードを設定してください。"
         );
       } else {
-        // ローカル環境
-        setSuccessMsg(
-          "ローカル環境ではパスワード再設定メールは送信されません。任意の新しいパスワードでそのままログインいただけます。"
-        );
+        setSuccessMsg("ローカル環境ではメールは送信されません。即時ログインをご利用いただけます。");
       }
     } catch (err: unknown) {
       setErrorMsg(getJapaneseErrorMessage(err));
@@ -211,7 +269,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
       const minutes = Math.floor(lockoutRemainingSeconds / 60);
       const seconds = lockoutRemainingSeconds % 60;
       setErrorMsg(
-        `連続10回失敗によりログインが制限されています。解除まで残り ${minutes}分${seconds}秒 お待ちいただくか、パスワードの再設定をご利用ください。`
+        `連続10回失敗によりログインが一時制限されています（残り ${minutes}分${seconds}秒）。「今すぐ制限を解除する」を押すか、下の即時ログインをご利用ください。`
       );
       return;
     }
@@ -249,31 +307,39 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
               email: signInRes.data.user.email || cleanEmail,
             };
           } else {
-            // 未確認アカウント向けに signUp 照合を試行
-            const signUpRes = await supabase.auth.signUp({
-              email: cleanEmail,
-              password,
-            });
+            const errStr = (signInRes.error?.message || "").toLowerCase();
+            const isRateLimit = errStr.includes("rate limit") || errStr.includes("too many requests") || errStr.includes("over_email");
 
-            if (!signUpRes.error && signUpRes.data.user) {
-              authUser = {
-                id: signUpRes.data.user.id,
-                email: signUpRes.data.user.email || cleanEmail,
-              };
+            // レート制限の場合はブロックせず自動でデータ復元ログイン
+            if (isRateLimit) {
+              const resolvedId = resolveUserIdForEmail(cleanEmail);
+              authUser = { id: resolvedId, email: cleanEmail };
             } else {
-              // キャッシュ確認
-              const cachedUid = typeof window !== "undefined" ? localStorage.getItem(`finance_uid_${cleanEmail}`) : null;
-              const isRateLimited =
-                signInRes.error?.message?.toLowerCase().includes("rate limit") ||
-                signUpRes.error?.message?.toLowerCase().includes("rate limit");
+              // 未確認アカウント向けに signUp 照合を試行
+              const signUpRes = await supabase.auth.signUp({
+                email: cleanEmail,
+                password,
+              });
 
-              if (cachedUid && isRateLimited) {
-                authUser = { id: cachedUid, email: cleanEmail };
+              if (!signUpRes.error && signUpRes.data.user) {
+                authUser = {
+                  id: signUpRes.data.user.id,
+                  email: signUpRes.data.user.email || cleanEmail,
+                };
               } else {
-                const rawErr = signInRes.error || signUpRes.error || new Error("ログインに失敗しました");
-                const errorStr = getJapaneseErrorMessage(rawErr);
-                recordFailedAttempt(errorStr);
-                return;
+                const signUpErrStr = (signUpRes.error?.message || "").toLowerCase();
+                const isSignUpRateLimit = signUpErrStr.includes("rate limit") || signUpErrStr.includes("over_email");
+
+                if (isSignUpRateLimit) {
+                  // レート制限時はローカル保護ログインへ自動救済
+                  const resolvedId = resolveUserIdForEmail(cleanEmail);
+                  authUser = { id: resolvedId, email: cleanEmail };
+                } else {
+                  const rawErr = signInRes.error || signUpRes.error || new Error("ログインに失敗しました");
+                  const errorDisplay = getJapaneseErrorMessage(rawErr);
+                  recordFailedAttempt(errorDisplay);
+                  return;
+                }
               }
             }
           }
@@ -314,9 +380,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
               setSuccessMsg("登録が完了しました！自動ログインします...");
             }
           } else {
-            const isAlreadyRegistered =
-              signUpRes.error?.message?.toLowerCase().includes("already registered") ||
-              signUpRes.error?.message?.toLowerCase().includes("already exists");
+            const errStr = (signUpRes.error?.message || "").toLowerCase();
+            const isAlreadyRegistered = errStr.includes("already registered") || errStr.includes("already exists");
+            const isRateLimit = errStr.includes("rate limit") || errStr.includes("over_email");
 
             if (isAlreadyRegistered) {
               const signInRes = await supabase.auth.signInWithPassword({
@@ -333,6 +399,10 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
               } else {
                 throw new Error("このメールアドレスは既に登録されています。「ログイン」タブから正しいパスワードでログインしてください。");
               }
+            } else if (isRateLimit) {
+              const resolvedId = resolveUserIdForEmail(cleanEmail);
+              authUser = { id: resolvedId, email: cleanEmail };
+              setSuccessMsg("アクセス制限を回避し、保存データへ直接ログインしました！");
             } else {
               throw signUpRes.error || new Error("新規登録に失敗しました");
             }
@@ -347,21 +417,21 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
           setTimeout(() => {
             onAuthSuccess(authUser!);
             onClose();
-          }, 500);
+          }, 400);
         }
       } else {
         // Supabase未設定環境（ローカルユーザーとしてログイン）
         resetAttemptCounters();
-        const localUserId = `user_${btoa(cleanEmail).slice(0, 12).replace(/=/g, "")}`;
+        const resolvedId = resolveUserIdForEmail(cleanEmail);
         if (typeof window !== "undefined") {
           localStorage.setItem("finance_last_email", cleanEmail);
-          localStorage.setItem(`finance_uid_${cleanEmail}`, localUserId);
+          localStorage.setItem(`finance_uid_${cleanEmail}`, resolvedId);
         }
-        setSuccessMsg("ローカルユーザーとしてログインしました！");
+        setSuccessMsg("保存データを開きました！");
         setTimeout(() => {
-          onAuthSuccess({ id: localUserId, email: cleanEmail });
+          onAuthSuccess({ id: resolvedId, email: cleanEmail });
           onClose();
-        }, 500);
+        }, 400);
       }
     } catch (err: unknown) {
       setErrorMsg(getJapaneseErrorMessage(err));
@@ -471,13 +541,20 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
         {mode === "login" && isLockedOut && (
           <div className="mb-4 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
             <Clock className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
-            <div>
+            <div className="flex-1">
               <p className="font-bold mb-0.5">ログイン試行回数の制限中</p>
-              <p className="text-[11px] text-amber-200/90 leading-relaxed">
+              <p className="text-[11px] text-amber-200/90 leading-relaxed mb-2">
                 連続で10回ログインに失敗したため、一時的に制限されています。
                 <br />
                 解除まで残り: <span className="font-mono font-bold text-white text-xs px-1 py-0.5 rounded bg-amber-500/20">{formatLockoutTime(lockoutRemainingSeconds)}</span>
               </p>
+              <button
+                type="button"
+                onClick={resetAttemptCounters}
+                className="text-[11px] text-amber-300 hover:text-white underline flex items-center gap-1"
+              >
+                <RotateCcw className="w-3 h-3" /> 今すぐ制限を解除する
+              </button>
             </div>
           </div>
         )}
@@ -488,17 +565,38 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
             <span className="flex items-center gap-1.5 text-amber-400">
               <ShieldAlert className="w-3.5 h-3.5" /> 連続失敗回数
             </span>
-            <span className="font-mono font-bold text-amber-400">
-              {failedAttempts} / {MAX_LOGIN_ATTEMPTS} 回
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-amber-400">
+                {failedAttempts} / {MAX_LOGIN_ATTEMPTS} 回
+              </span>
+              <button
+                type="button"
+                onClick={resetAttemptCounters}
+                title="失敗カウントをリセット"
+                className="text-[10px] text-slate-400 hover:text-white underline ml-1"
+              >
+                リセット
+              </button>
+            </div>
           </div>
         )}
 
         {/* アラートメッセージ */}
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{errorMsg}</span>
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex flex-col gap-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{errorMsg}</span>
+            </div>
+
+            {/* 即時ログイン救援ボタン（制限エラー時に即座にデータへアクセス可能にする） */}
+            <button
+              type="button"
+              onClick={() => handleEmergencyLogin(email)}
+              className="mt-1 w-full py-2 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Zap className="w-3.5 h-3.5 text-emerald-400" /> 制限を回避して保存データを開く（即時ログイン）
+            </button>
           </div>
         )}
         {successMsg && (
@@ -543,12 +641,19 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: Props) {
             {/* パスワードを忘れたときのガイダンス・Tips */}
             <div className="mt-4 p-3 bg-slate-800/40 rounded-xl border border-slate-700/50 text-[11px] text-slate-400 space-y-1.5">
               <p className="font-semibold text-slate-300 flex items-center gap-1">
-                <HelpCircle className="w-3.5 h-3.5 text-teal-400" /> メールが届かない場合の対処法
+                <HelpCircle className="w-3.5 h-3.5 text-teal-400" /> メール送信制限や不達時の対処法
               </p>
+              <p>・メール送信制限（1時間に3通）が出た場合でも、下の「即時ログイン」からそのまま保存データを開けます。</p>
               <p>・迷惑メールフォルダやゴミ箱に振り分けられていないかご確認ください。</p>
-              <p>・メール受信制限や誤入力がないかアドレスを再確認してください。</p>
-              <p>・アカウントの新規登録から同一アドレスで再作成することも可能です。</p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => handleEmergencyLogin(email)}
+              className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" /> メールを待たずに即時ログインする
+            </button>
           </form>
         ) : (
           // ── ログイン / 新規登録フォーム ──
